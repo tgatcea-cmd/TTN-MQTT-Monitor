@@ -413,6 +413,13 @@ class _MqttDashboardState extends State<MqttDashboard> {
     );
   }
 
+
+  bool isDeviceOffline(DateTime? timestamp) {
+    if (timestamp == null) return true;
+    // 15 minutes timeout as per PDF requirement
+    return DateTime.now().difference(timestamp).inMinutes > 15;
+  }
+
   Widget _buildDashboardArea() {
     if (currentReading == null) {
       return Center(
@@ -427,8 +434,27 @@ class _MqttDashboardState extends State<MqttDashboard> {
       );
     }
 
+    bool offline = isDeviceOffline(currentReading!.timestamp);
+
     return Column(
       children: [
+        // Offline Warning
+        if (offline)
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(8),
+          margin: EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(8)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.wifi_off, color: Colors.white),
+              SizedBox(width: 10),
+              Text("DEVICE OFFLINE (No data > 15m)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+
         // Alert Banner
         if ((currentReading!.co2 ?? 0) > 1000)
           Container(
@@ -449,9 +475,19 @@ class _MqttDashboardState extends State<MqttDashboard> {
         // Metrics Grid
         Row(
           children: [
-            Expanded(child: _buildMetricCard("Temperature", "${currentReading!.temperature?.toStringAsFixed(1)}°C", Icons.thermostat, Colors.orange)),
+            Expanded(
+              child: Opacity(
+                opacity: offline ? 0.5 : 1.0,
+                child: _buildMetricCard("Temperature", "${currentReading!.temperature?.toStringAsFixed(1)}°C", Icons.thermostat, Colors.orange),
+              ),
+            ),
             SizedBox(width: 10),
-            Expanded(child: _buildMetricCard("Humidity", "${currentReading!.humidity?.toStringAsFixed(1)}%", Icons.water_drop, Colors.blue)),
+            Expanded(
+              child: Opacity(
+                opacity: offline ? 0.5 : 1.0,
+                child: _buildMetricCard("Humidity", "${currentReading!.humidity?.toStringAsFixed(1)}%", Icons.water_drop, Colors.blue),
+              ),
+            ),
           ],
         ),
         SizedBox(height: 10),
@@ -483,7 +519,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                 textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
               ),
             ),
-          )
+          ),
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
+import 'package:flutter/foundation.dart';
 
 class MqttWrapper {
   late MqttServerClient client;
@@ -43,15 +44,15 @@ class MqttWrapper {
     try {
       await client.connect();
     } on NoConnectionException catch (e) {
-      print('MQTT client exception - $e');
+      debugPrint('MQTT client exception - $e');
       client.disconnect();
     } on SocketException catch (e) {
-      print('Socket exception - $e');
+      debugPrint('Socket exception - $e');
       client.disconnect();
     }
 
     if (client.connectionStatus!.state == MqttConnectionState.connected) {
-      print('TTN MQTT client connected');
+      debugPrint('TTN MQTT client connected');
       // Subscribe to all messages for all devices in the app
       client.subscribe('v3/$appId/devices/+/#', MqttQos.atMostOnce);
       client.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
@@ -80,7 +81,7 @@ class MqttWrapper {
         }
       });
     } else {
-      print('TTN MQTT client connection failed - disconnecting, status is ${client.connectionStatus}');
+      debugPrint('TTN MQTT client connection failed - disconnecting, status is ${client.connectionStatus}');
       client.disconnect();
     }
   }
@@ -97,14 +98,14 @@ class MqttWrapper {
   }
 
   void onConnected() {
-    print('Connected to TTN MQTT broker');
+    debugPrint('Connected to TTN MQTT broker');
   }
 
   void onDisconnected() {
-    print('Disconnected from TTN MQTT broker');
+    debugPrint('Disconnected from TTN MQTT broker');
   }
 
   void onSubscribed(String topic) {
-    print('Subscribed to $topic');
+    debugPrint('Subscribed to $topic');
   }
 }

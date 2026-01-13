@@ -8,8 +8,10 @@ import 'config.dart';
 import 'database_service.dart';
 
 class MqttDashboard extends StatefulWidget {
+  const MqttDashboard({super.key});
+
   @override
-  _MqttDashboardState createState() => _MqttDashboardState();
+  State<MqttDashboard> createState() => _MqttDashboardState();
 }
 
 class _MqttDashboardState extends State<MqttDashboard> {
@@ -84,10 +86,13 @@ class _MqttDashboardState extends State<MqttDashboard> {
           ElevatedButton(
             onPressed: () async {
               if (keyController.text.isNotEmpty) {
+                final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
                 await _storageService.saveKey(profile.appId, keyController.text);
+                if (!mounted) return;
                 setState(() { profile.accessKey = keyController.text; });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Key saved securely!")));
+                navigator.pop();
+                messenger.showSnackBar(SnackBar(content: Text("Key saved securely!")));
               }
             },
             child: Text("Save"),
@@ -125,13 +130,13 @@ class _MqttDashboardState extends State<MqttDashboard> {
       }
       
       if (targetDeviceId.isNotEmpty && deviceId.toLowerCase() != targetDeviceId.toLowerCase()) {
-        print("Ignoring data from $deviceId (Target is $targetDeviceId)");
+        debugPrint("Ignoring data from $deviceId (Target is $targetDeviceId)");
         return;
       }
 
       // 4. Parse sensor data
       setState(() {
-        lastLog = "Updated: ${TimeOfDay.now().format(context)}";
+        lastLog = "Updated: ${DateTime.now().toLocal().toString().split('.')[0].split(' ')[1]}";
 
         double? t = findValue(payload, 'temperature');
         double? h = findValue(payload, 'humidity');
@@ -223,6 +228,11 @@ class _MqttDashboardState extends State<MqttDashboard> {
       } else {
         // Handle Auth Failure
         final code = mqtt.client.connectionStatus?.returnCode;
+        if (!mounted) {
+          // Ensure we don't call stateful APIs when widget is gone
+          mqtt.client.disconnect();
+          return;
+        }
         if (code == MqttConnectReturnCode.notAuthorized || code == MqttConnectReturnCode.badUsernameOrPassword) {
            _showErrorSnackBar("⛔ Auth Failed: Key Rejected");
         } else {
@@ -231,6 +241,10 @@ class _MqttDashboardState extends State<MqttDashboard> {
         disconnect();
       }
     } catch (e) {
+      if (!mounted) {
+        mqtt.client.disconnect();
+        return;
+      }
       _showErrorSnackBar("Network Error");
       disconnect();
     }
@@ -279,7 +293,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       ),
-                      value: selectedProfile,
+                      initialValue: selectedProfile,
                       isExpanded: true,
                       onChanged: (p) {
                         disconnect();
@@ -541,7 +555,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "${timestamp.toLocal().toString().split('.')[0]}",
+                          timestamp.toLocal().toString().split('.')[0],
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                         ),
                         Text(

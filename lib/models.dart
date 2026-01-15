@@ -26,6 +26,10 @@ class SensorData {
   final double? battery;
   final double dewPoint;
   final DateTime timestamp;
+  
+  // For flexible/custom fields
+  final Map<String, dynamic>? customFields;
+  final String? deviceType;
 
   SensorData({
     this.temperature,
@@ -34,6 +38,8 @@ class SensorData {
     this.battery,
     required this.dewPoint,
     required this.timestamp,
+    this.customFields,
+    this.deviceType,
   });
 }
 

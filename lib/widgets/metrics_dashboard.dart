@@ -3,9 +3,8 @@ import '../models.dart';
 
 class MetricsDashboard extends StatelessWidget {
   final SensorData? currentReading;
-  final DateTime? lastSeenTimestamp;
-  final int secondsSince;
   final bool offline;
+  final bool isMonitoring; // NEW: Added to track monitoring state
   final int offlineThresholdSeconds;
   final TTNProfile? selectedProfile;
   final VoidCallback? onSendStopAlarm;
@@ -13,9 +12,8 @@ class MetricsDashboard extends StatelessWidget {
   const MetricsDashboard({
     super.key,
     required this.currentReading,
-    required this.lastSeenTimestamp,
-    required this.secondsSince,
     required this.offline,
+    required this.isMonitoring, // NEW
     required this.offlineThresholdSeconds,
     required this.selectedProfile,
     this.onSendStopAlarm,
@@ -26,18 +24,6 @@ class MetricsDashboard extends StatelessWidget {
     return timestamp
         .add(Duration(seconds: offlineThresholdSeconds))
         .isBefore(DateTime.now());
-  }
-
-  String formatDuration(int totalSeconds) {
-    if (totalSeconds < 0) totalSeconds = 0;
-    final int hours = totalSeconds ~/ 3600;
-    final int minutes = (totalSeconds % 3600) ~/ 60;
-    final int seconds = totalSeconds % 60;
-    final parts = <String>[];
-    if (hours > 0) parts.add('${hours}h');
-    if (minutes > 0) parts.add('${minutes}m');
-    parts.add('${seconds}s');
-    return parts.join(' ');
   }
 
   Widget _buildMetricCard(
@@ -80,41 +66,39 @@ class MetricsDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // If we don't have an in-memory reading, show a minimal view
+    // If we don't have an in-memory reading
     if (currentReading == null) {
+      // CASE 1: Monitoring is OFF - Show Idle Message
+      if (!isMonitoring) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.pause_circle_outline, size: 64, color: Colors.grey[400]),
+              SizedBox(height: 16),
+              Text(
+                "System Idle",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[600],
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                "Start monitoring to receive live sensor data",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // CASE 2: Monitoring is ON but no data yet - Show Loading
       return Column(
         children: [
           if (offline)
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(8),
-              margin: EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey[700],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.wifi_off, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text(
-                    "DEVICE OFFLINE (No data > ${formatDuration(offlineThresholdSeconds)})",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text(
-              "Last seen: ${formatDuration(secondsSince)} ago",
-              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
-            ),
-          ),
+            _buildOfflineBanner(),
           Center(
             child: Column(
               children: [
@@ -135,33 +119,11 @@ class MetricsDashboard extends StatelessWidget {
       );
     }
 
+    // Normal State with Data
     return Column(
       children: [
         // Offline Warning
-        if (offline)
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(8),
-            margin: EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey[700],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.wifi_off, color: Colors.white),
-                SizedBox(width: 10),
-                Text(
-                  "DEVICE OFFLINE (No data > ${formatDuration(offlineThresholdSeconds)})",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        if (offline) _buildOfflineBanner(),
 
         // Alert Banner
         if ((currentReading!.co2 ?? 0) > 1000)
@@ -193,16 +155,8 @@ class MetricsDashboard extends StatelessWidget {
         // Metrics Grid
         Builder(
           builder: (context) {
-            final lastSeenText = "Last seen: ${formatDuration(secondsSince)} ago";
             final metricsArea = Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    lastSeenText,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ),
                 Row(
                   children: [
                     Expanded(
@@ -260,26 +214,10 @@ class MetricsDashboard extends StatelessWidget {
 
             if (offline) {
               const List<double> greyMatrix = <double>[
-                0.2126,
-                0.7152,
-                0.0722,
-                0,
-                0,
-                0.2126,
-                0.7152,
-                0.0722,
-                0,
-                0,
-                0.2126,
-                0.7152,
-                0.0722,
-                0,
-                0,
-                0,
-                0,
-                0,
-                1,
-                0,
+                0.2126, 0.7152, 0.0722, 0, 0,
+                0.2126, 0.7152, 0.0722, 0, 0,
+                0.2126, 0.7152, 0.0722, 0, 0,
+                0, 0, 0, 1, 0,
               ];
               return ColorFiltered(
                 colorFilter: const ColorFilter.matrix(greyMatrix),
@@ -311,6 +249,32 @@ class MetricsDashboard extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildOfflineBanner() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(8),
+      margin: EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey[700],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.wifi_off, color: Colors.white),
+          SizedBox(width: 10),
+          Text(
+            "DEVICE OFFLINE (No data > ${(offlineThresholdSeconds ~/ 60)} mins)",
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

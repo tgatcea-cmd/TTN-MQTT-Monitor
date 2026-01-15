@@ -20,24 +20,34 @@ class MqttWrapper {
     required this.appId,
     required this.accessKey,
     this.broker = 'eu1.cloud.thethings.network',
-    this.port = 1883,
-    this.secure = false,
+    this.port = 8883, // CHANGED: Default to Secure MQTT port
+    this.secure = true, // CHANGED: Default to Secure
   }) {
-    client = MqttServerClient(broker, 'flutter_mqtt_${DateTime.now().millisecondsSinceEpoch}');
+    // Generate a unique client ID to prevent broker disconnecting on conflict
+    String clientId = 'flutter_client_${DateTime.now().millisecondsSinceEpoch}_${appId.split('@')[0]}';
+    client = MqttServerClient(broker, clientId);
     client.port = port;
     client.secure = secure;
-    client.logging(on: false);
+    client.logging(on: false); 
     client.keepAlivePeriod = 20;
+    
+    // CHANGED: correct security context for TTN/AWS/Standard Brokers
+    if (secure) {
+      client.onBadCertificate = (dynamic cert) => true; // Accept certificates
+      client.securityContext = SecurityContext.defaultContext;
+    }
+
     client.onDisconnected = onDisconnected;
     client.onConnected = onConnected;
     client.onSubscribed = onSubscribed;
   }
 
   Future<void> connect() async {
+    // CHANGED: Clean session is vital for stability
     final connMessage = MqttConnectMessage()
-        .withClientIdentifier('')
+        .withClientIdentifier(client.clientIdentifier)
         .authenticateAs(appId, accessKey)
-        .startClean()
+        .startClean() 
         .withWillQos(MqttQos.atMostOnce);
     client.connectionMessage = connMessage;
 
@@ -49,12 +59,16 @@ class MqttWrapper {
     } on SocketException catch (e) {
       debugPrint('Socket exception - $e');
       client.disconnect();
+    } catch (e) {
+      debugPrint('Generic MQTT exception - $e');
+      client.disconnect();
     }
 
     if (client.connectionStatus!.state == MqttConnectionState.connected) {
       debugPrint('TTN MQTT client connected');
       // Subscribe to all messages for all devices in the app
       client.subscribe('v3/$appId/devices/+/#', MqttQos.atLeastOnce);
+      
       client.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final MqttPublishMessage recMess = c[0].payload as MqttPublishMessage;
         final String pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
@@ -92,6 +106,7 @@ class MqttWrapper {
   }
 
   void publish(String topic, String message) {
+    if (client.connectionStatus?.state != MqttConnectionState.connected) return;
     final builder = MqttClientPayloadBuilder();
     builder.addString(message);
     client.publishMessage(topic, MqttQos.atMostOnce, builder.payload!);

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../models/device.dart';
 
@@ -22,6 +23,9 @@ class DeviceCameraRoll extends StatefulWidget {
 class _DeviceCameraRollState extends State<DeviceCameraRoll> {
   late PageController _pageController;
   int _currentIndex = 0;
+  
+  // To debounce wheel events so one scroll doesn't skip 10 pages
+  DateTime _lastScrollTime = DateTime.now();
 
   @override
   void initState() {
@@ -33,7 +37,6 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
   @override
   void didUpdateWidget(DeviceCameraRoll oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update when either selected device changes OR device list changes
     if (widget.selectedDevice?.id != oldWidget.selectedDevice?.id ||
         widget.devices.length != oldWidget.devices.length) {
       _setInitialPage();
@@ -49,13 +52,40 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
       );
       if (_currentIndex == -1) _currentIndex = 0;
 
-      // Animate to the selected device if needed
       if (mounted && _pageController.hasClients) {
         _pageController.animateToPage(
           _currentIndex,
           duration: Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
+      }
+    }
+  }
+
+  // CHANGED: Logic to handle mouse wheel
+  void _handleScroll(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      final now = DateTime.now();
+      if (now.difference(_lastScrollTime).inMilliseconds < 200) return;
+
+      if (event.scrollDelta.dy > 0) {
+        // Scroll down / Next
+        if (_currentIndex < widget.devices.length - 1) {
+          _pageController.nextPage(
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+          _lastScrollTime = now;
+        }
+      } else if (event.scrollDelta.dy < 0) {
+        // Scroll up / Previous
+        if (_currentIndex > 0) {
+          _pageController.previousPage(
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+          _lastScrollTime = now;
+        }
       }
     }
   }
@@ -75,15 +105,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
           children: [
             Icon(Icons.devices, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            Text(
-              'No devices configured',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Add a device from the menu to get started',
-              style: TextStyle(color: Colors.grey),
-            ),
+            Text('No devices configured'),
           ],
         ),
       );
@@ -91,26 +113,27 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
 
     return Column(
       children: [
-        // Page View (Camera Roll)
+        // CHANGED: Wrap in Listener for mouse wheel support
         Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() => _currentIndex = index);
-              widget.onDeviceChanged(widget.devices[index]);
-            },
-            itemCount: widget.devices.length,
-            itemBuilder: (context, index) =>
-                widget.deviceViewBuilder(widget.devices[index]),
+          child: Listener(
+            onPointerSignal: _handleScroll,
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() => _currentIndex = index);
+                widget.onDeviceChanged(widget.devices[index]);
+              },
+              itemCount: widget.devices.length,
+              itemBuilder: (context, index) =>
+                  widget.deviceViewBuilder(widget.devices[index]),
+            ),
           ),
         ),
         
-        // Indicator and device info
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Device name and current reading indicator
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
@@ -166,7 +189,6 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
               
               SizedBox(height: 12),
               
-              // Dot indicator
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(

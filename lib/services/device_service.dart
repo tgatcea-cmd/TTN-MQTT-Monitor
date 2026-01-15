@@ -78,6 +78,7 @@ class DeviceService {
     String? deviceEui,
     String? accessKey,
     bool? canControl,
+    String? deviceType,
   }) async {
     final devices = await getAllDevices();
     final index = devices.indexWhere((d) => d.id == id);
@@ -91,6 +92,7 @@ class DeviceService {
       broker: broker,
       deviceEui: deviceEui,
       canControl: canControl,
+      deviceType: deviceType,
       updatedAt: DateTime.now(),
     );
 

@@ -44,6 +44,7 @@ class DeviceService {
     required String deviceEui,
     required String accessKey,
     bool canControl = false,
+    String batteryMode = 'voltage', // NEW parameter
   }) async {
     final device = Device(
       id: appId, // Use appId as unique ID
@@ -52,6 +53,7 @@ class DeviceService {
       broker: broker,
       deviceEui: deviceEui,
       canControl: canControl,
+      batteryMode: batteryMode, // Assign it
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -79,6 +81,7 @@ class DeviceService {
     String? accessKey,
     bool? canControl,
     String? deviceType,
+    String? batteryMode, // NEW parameter
   }) async {
     final devices = await getAllDevices();
     final index = devices.indexWhere((d) => d.id == id);
@@ -93,6 +96,7 @@ class DeviceService {
       deviceEui: deviceEui,
       canControl: canControl,
       deviceType: deviceType,
+      batteryMode: batteryMode, // Update it
       updatedAt: DateTime.now(),
     );
 

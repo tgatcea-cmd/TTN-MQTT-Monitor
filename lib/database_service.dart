@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -18,6 +19,8 @@ class DatabaseService {
   Future<void> insertSensorReading(
       String deviceId, String profileName, SensorData data) async {
     try {
+      await _ensureAuth();
+      
       await _client.from('sensor_readings').insert({
         'device_id': deviceId,
         'profile_name': profileName,
@@ -37,12 +40,12 @@ class DatabaseService {
   }
 
   /// Get latest readings (for History View)
-  Future<List<Map<String, dynamic>>> getLatestReadings({int limit = 50}) async {
+  Future<List<Map<String, dynamic>>> getLatestReadings({int limit = 50, bool ascending = false}) async {
     try {
       final List<dynamic> response = await _client
           .from('sensor_readings')
           .select()
-          .order('timestamp', ascending: false)
+          .order('timestamp', ascending: ascending)
           .limit(limit);
       
       return List<Map<String, dynamic>>.from(response);
@@ -177,33 +180,52 @@ class DatabaseService {
     debugPrint('Unsubscribing from readings');
   }
 
+  Future<void> _ensureAuth() async {
+    final session = _client.auth.currentSession;
+    if (session == null) {
+      // This signs in as a user with role 'authenticated'
+      await _client.auth.signInAnonymously(); 
+    }
+  }
+
   /// Insert test sensor data for development/testing
   /// Creates a reading with random temperature/humidity values
-  Future<void> insertTestSensorReading() async {
+/// Insert test sensor data
+  /// Now accepts optional data to match the Dashboard's generated values
+  Future<void> insertTestSensorReading([SensorData? specificData]) async {
     try {
-      final random = Random();
-      final temperature = 15.0 + random.nextDouble() * 20.0; // 15-35°C
-      final humidity = 30.0 + random.nextDouble() * 50.0; // 30-80%
-      final co2 = 400.0 + random.nextDouble() * 600.0; // 400-1000 ppm
-      final battery = 2.8 + random.nextDouble() * 0.5; // 2.8-3.3V
+      SensorData data;
 
-      final dewPoint = _calculateDewPoint(temperature, humidity);
-
-      await insertSensorReading(
-        'euid-test_device',
-        'test_profile',
-        SensorData(
+      if (specificData != null) {
+        // Usar los datos que nos pasan (para que coincidan con el Dashboard)
+        data = specificData;
+      } else {
+        // Fallback: Generar nuevos si no se pasan datos (comportamiento antiguo)
+        final random = Random();
+        final temperature = 15.0 + random.nextDouble() * 20.0;
+        final humidity = 30.0 + random.nextDouble() * 50.0;
+        final co2 = 400.0 + random.nextDouble() * 600.0;
+        final battery = 2.8 + random.nextDouble() * 0.5;
+        final dewPoint = _calculateDewPoint(temperature, humidity);
+        
+        data = SensorData(
           temperature: temperature,
           humidity: humidity,
           co2: co2,
           battery: battery,
           dewPoint: dewPoint,
           timestamp: DateTime.now(),
-        ),
+        );
+      }
+
+      await insertSensorReading(
+        'euid-test_device',
+        'Test Device (Simulated)', // Nombre consistente
+        data,
       );
 
       debugPrint(
-          '✅ Test reading inserted: ${temperature.toStringAsFixed(1)}°C, ${humidity.toStringAsFixed(1)}%');
+          '✅ Test reading inserted: ${data.temperature?.toStringAsFixed(1)}°C');
     } catch (e) {
       debugPrint('Error inserting test data: $e');
       rethrow;

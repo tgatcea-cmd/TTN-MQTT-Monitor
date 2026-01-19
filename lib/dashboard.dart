@@ -1,5 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
-import 'dart:math'; 
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:mqtt_wrapper/mqtt_wrapper.dart';
@@ -8,8 +7,7 @@ import 'models.dart';
 import 'models/device.dart';
 import 'services/device_service.dart';
 import 'database_service.dart';
-// CHANGED: Hide calculateDewPoint to resolve conflict with models.dart
-import 'mqtt_handlers.dart' hide calculateDewPoint; 
+import 'mqtt_handlers.dart' hide calculateDewPoint;
 import 'widgets/metrics_dashboard.dart';
 import 'widgets/history_view.dart';
 import 'widgets/device_sidebar.dart';
@@ -27,26 +25,22 @@ class _MqttDashboardState extends State<MqttDashboard> {
   final DatabaseService _databaseService = DatabaseService();
   final DeviceService _deviceService = DeviceService();
 
-  // MQTT clients per device
   final Map<String, MqttWrapper> _activeClients = {};
-  
-  // Track subscriptions to prevent memory leaks
+
   final List<StreamSubscription> _subscriptions = [];
-  
+
   late MqttHandlers _mqttHandlers;
 
   bool isMonitoring = false;
   bool isLoadingDevices = true;
   bool _showHistory = false;
-  
-  // Sidebar state
+  bool _sortAscending = false; 
   bool _isSidebarOpen = true;
 
   List<Device> devices = [];
   Device? selectedDevice;
   Map<String, SensorData?> deviceReadings = {};
 
-  // CHANGED: Added 'final' to resolve prefer_final_fields warning
   final Map<String, DateTime> _lastReadingByDevice = {};
   static const int _offlineThresholdSeconds = 60 * 16;
 
@@ -73,7 +67,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
     final devicesWithKeys = <Device>[];
     for (var device in loadedDevices) {
       final apiKey = await _deviceService.getDeviceApiKey(device.appId);
-      devicesWithKeys.add(apiKey != null ? device.copyWith(accessKey: apiKey) : device);
+      devicesWithKeys.add(
+        apiKey != null ? device.copyWith(accessKey: apiKey) : device,
+      );
     }
 
     if (!mounted) return;
@@ -98,7 +94,6 @@ class _MqttDashboardState extends State<MqttDashboard> {
         if (!mounted) return;
         setState(() {
           deviceReadings[sourceDeviceId] = data;
-          // Store timestamp per device for offline detection
           _lastReadingByDevice[sourceDeviceId] = data.timestamp;
         });
       },
@@ -143,7 +138,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
   }
 
   void sendStopAlarm() {
-    if (!isMonitoring || selectedDevice == null || !selectedDevice!.canControl) return;
+    if (!isMonitoring || selectedDevice == null || !selectedDevice!.canControl)
+      return;
 
     final client = _activeClients[selectedDevice!.appId];
     if (client == null) {
@@ -177,14 +173,15 @@ class _MqttDashboardState extends State<MqttDashboard> {
 
       if (_activeClients.containsKey(device.appId)) continue;
 
-      final isTTN = device.broker.contains('thethings') || device.broker.contains('ttn');
-      
+      final isTTN =
+          device.broker.contains('thethings') || device.broker.contains('ttn');
+
       final mqtt = MqttWrapper(
         appId: device.appId,
         accessKey: device.accessKey!,
         broker: device.broker,
-        port: isTTN ? 8883 : 1883, // Force MQTTS for TTN
-        secure: isTTN, 
+        port: isTTN ? 8883 : 1883,
+        secure: isTTN,
       );
 
       final subscription = mqtt.messages.listen((message) {
@@ -199,9 +196,13 @@ class _MqttDashboardState extends State<MqttDashboard> {
 
       try {
         await mqtt.connect();
-        if (mqtt.client.connectionStatus?.state == MqttConnectionState.connected) {
+        if (mqtt.client.connectionStatus?.state ==
+            MqttConnectionState.connected) {
           final String cleanAppId = device.appId.split('@')[0];
-          mqtt.client.subscribe("v3/$cleanAppId/devices/+/up", MqttQos.atMostOnce);
+          mqtt.client.subscribe(
+            "v3/$cleanAppId/devices/+/up",
+            MqttQos.atMostOnce,
+          );
 
           _activeClients[device.appId] = mqtt;
           successCount++;
@@ -214,7 +215,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
     if (successCount > 0) {
       setState(() {
         isMonitoring = true;
-        lastLog = "✅ Monitoring $successCount Device${successCount != 1 ? 's' : ''}";
+        lastLog =
+            "✅ Monitoring $successCount Device${successCount != 1 ? 's' : ''}";
       });
     } else {
       _showErrorSnackBar("Could not connect to any devices. Check API Keys.");
@@ -230,7 +232,10 @@ class _MqttDashboardState extends State<MqttDashboard> {
 
   void _loadHistoricalData() async {
     try {
-      final data = await _databaseService.getLatestReadings(limit: 100);
+      final data = await _databaseService.getLatestReadings(
+        limit: 100,
+        ascending: _sortAscending,
+      );
       if (mounted) {
         setState(() {
           _historicalData = data;
@@ -254,13 +259,12 @@ class _MqttDashboardState extends State<MqttDashboard> {
   Future<void> _insertTestData() async {
     final String testId = 'euid-test_device';
     final String testName = 'Test Device (Simulated)';
-    
-    // 1. Generate Fake Data
+
     final random = Random();
     final temp = 20.0 + random.nextDouble() * 10.0;
     final hum = 40.0 + random.nextDouble() * 20.0;
     final dew = calculateDewPoint(temp, hum);
-    
+
     final sensorData = SensorData(
       temperature: temp,
       humidity: hum,
@@ -268,10 +272,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
       battery: 3.2,
       dewPoint: dew,
       timestamp: DateTime.now(),
-      deviceType: 'TTN'
+      deviceType: 'TTN',
     );
 
-    // 2. Ensure Test Device Exists in List (Ephemeral or Persisted)
     if (!devices.any((d) => d.id == testId)) {
       final testDevice = Device(
         id: testId,
@@ -282,31 +285,27 @@ class _MqttDashboardState extends State<MqttDashboard> {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      
+
       setState(() {
         devices = [...devices, testDevice];
         deviceReadings[testId] = null;
-        // CHANGED: Use null-aware assignment
         selectedDevice ??= testDevice;
       });
     }
 
-    // 3. Inject into Live Dashboard (Simulate MQTT)
     setState(() {
       deviceReadings[testId] = sensorData;
       _lastReadingByDevice[testId] = sensorData.timestamp;
-      
-      // Auto-switch to test device to see result
       selectedDevice = devices.firstWhere((d) => d.id == testId);
     });
 
-    // 4. Save to DB (Background)
     try {
-      await _databaseService.insertTestSensorReading();
+      await _databaseService.insertTestSensorReading(sensorData);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Test reading added to DB & Dashboard'),
+          content: Text('✅ Test reading added: ${temp.toStringAsFixed(1)}°C'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 1),
         ),
@@ -324,7 +323,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
 
   Future<void> _addOrEditDevice(Device? device) async {
     final wasMonitoring = isMonitoring;
-    
+
     await showDialog(
       context: context,
       builder: (dialogBuildContext) => DeviceConfigDialog(
@@ -339,6 +338,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                 deviceEui: newDevice.deviceEui,
                 accessKey: newDevice.accessKey!,
                 canControl: newDevice.canControl,
+                batteryMode: newDevice.batteryMode, 
               );
             } else {
               await _deviceService.updateDevice(
@@ -349,6 +349,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                 accessKey: newDevice.accessKey,
                 canControl: newDevice.canControl,
                 deviceType: newDevice.deviceType,
+                batteryMode: newDevice.batteryMode, 
               );
             }
 
@@ -356,11 +357,13 @@ class _MqttDashboardState extends State<MqttDashboard> {
             final devicesWithKeys = <Device>[];
             for (var d in loadedDevices) {
               final apiKey = await _deviceService.getDeviceApiKey(d.appId);
-              devicesWithKeys.add(apiKey != null ? d.copyWith(accessKey: apiKey) : d);
+              devicesWithKeys.add(
+                apiKey != null ? d.copyWith(accessKey: apiKey) : d,
+              );
             }
 
             if (!mounted) return;
-            
+
             Device? newSelectedDevice = selectedDevice;
             if (device == null && devicesWithKeys.isNotEmpty) {
               newSelectedDevice = devicesWithKeys.lastWhere(
@@ -369,22 +372,22 @@ class _MqttDashboardState extends State<MqttDashboard> {
               );
               deviceReadings[newSelectedDevice.id] = null;
             }
-            
+
             setState(() {
               devices = devicesWithKeys;
               selectedDevice = newSelectedDevice;
             });
 
-            Navigator.pop(dialogBuildContext);
-
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(device == null ? 'Device added' : 'Device updated'),
+                content: Text(
+                  device == null ? 'Device added' : 'Device updated',
+                ),
                 backgroundColor: Colors.green,
               ),
             );
-            
+
             if (wasMonitoring && mounted) {
               _stopMonitoring();
               await Future.delayed(Duration(milliseconds: 500));
@@ -395,7 +398,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
           } catch (e) {
             if (mounted) {
               Navigator.pop(dialogBuildContext);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text('Error: $e')));
             }
           }
         },
@@ -404,7 +409,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
   }
 
   Future<void> _deleteDevice(Device device) async {
-     try {
+    try {
       await _deviceService.deleteDevice(device.id);
 
       final loadedDevices = await _deviceService.getAllDevices();
@@ -432,10 +437,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -457,10 +459,11 @@ class _MqttDashboardState extends State<MqttDashboard> {
       child: MetricsDashboard(
         currentReading: currentReading,
         offline: offline,
-        isMonitoring: isMonitoring, 
+        isMonitoring: isMonitoring,
         offlineThresholdSeconds: _offlineThresholdSeconds,
-        selectedProfile: null, 
+        selectedProfile: null,
         onSendStopAlarm: sendStopAlarm,
+        batteryMode: device.batteryMode, 
       ),
     );
   }
@@ -486,7 +489,6 @@ class _MqttDashboardState extends State<MqttDashboard> {
       ),
       body: Row(
         children: [
-          // Persistent Sidebar
           AnimatedContainer(
             duration: Duration(milliseconds: 200),
             width: _isSidebarOpen ? 280 : 0,
@@ -510,8 +512,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
               ),
             ),
           ),
-          
-          // Main Content Area
+
           Expanded(
             child: Column(
               children: [
@@ -521,11 +522,21 @@ class _MqttDashboardState extends State<MqttDashboard> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: isMonitoring ? _stopMonitoring : _startMonitoring,
-                          icon: Icon(isMonitoring ? Icons.stop : Icons.play_arrow),
-                          label: Text(isMonitoring ? 'Stop Monitoring' : 'Start Monitoring'),
+                          onPressed: isMonitoring
+                              ? _stopMonitoring
+                              : _startMonitoring,
+                          icon: Icon(
+                            isMonitoring ? Icons.stop : Icons.play_arrow,
+                          ),
+                          label: Text(
+                            isMonitoring
+                                ? 'Stop Monitoring'
+                                : 'Start Monitoring',
+                          ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isMonitoring ? Colors.red : Colors.green,
+                            backgroundColor: isMonitoring
+                                ? Colors.red
+                                : Colors.green,
                             foregroundColor: Colors.white,
                             padding: EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -534,8 +545,12 @@ class _MqttDashboardState extends State<MqttDashboard> {
                       SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () => _showHistory ? _hideHistoryView() : _showHistoryView(),
-                          icon: Icon(_showHistory ? Icons.dashboard : Icons.history),
+                          onPressed: () => _showHistory
+                              ? _hideHistoryView()
+                              : _showHistoryView(),
+                          icon: Icon(
+                            _showHistory ? Icons.dashboard : Icons.history,
+                          ),
                           label: Text(_showHistory ? 'Live View' : 'History'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.indigo,
@@ -547,8 +562,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                     ],
                   ),
                 ),
-
-                // Test Button Row
+                
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: ElevatedButton.icon(
@@ -562,8 +576,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                     ),
                   ),
                 ),
-                
-                // Status bar...
+
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Container(
@@ -575,7 +588,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
                     child: Row(
                       children: [
                         Icon(
-                          isMonitoring ? Icons.check_circle : Icons.radio_button_unchecked,
+                          isMonitoring
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
                           color: isMonitoring ? Colors.green : Colors.grey,
                           size: 20,
                         ),
@@ -596,15 +611,52 @@ class _MqttDashboardState extends State<MqttDashboard> {
 
                 SizedBox(height: 16),
 
-                if (devices.isEmpty)
-                   const Expanded(child: Center(child: Text("Add a device to begin")))
-                else if (_showHistory)
+                if (_showHistory) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 8.0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.end, 
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _sortAscending = !_sortAscending;
+                            });
+                            _loadHistoricalData(); 
+                          },
+                          icon: Icon(
+                            _sortAscending
+                                ? Icons.arrow_upward
+                                : Icons.arrow_downward,
+                          ),
+                          label: Text(
+                            _sortAscending
+                                ? "Más Antiguos Primero"
+                                : "Más Recientes Primero",
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   Expanded(
                     child: HistoryView(
                       databaseService: _databaseService,
                       historicalData: _historicalData,
                       onLoad: _loadHistoricalData,
+                      isAscending: _sortAscending,
                     ),
+                  ),
+                ] else if (devices.isEmpty)
+                  const Expanded(
+                    child: Center(child: Text("Add a device to begin")),
                   )
                 else
                   Expanded(

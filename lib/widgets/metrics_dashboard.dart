@@ -8,6 +8,7 @@ class MetricsDashboard extends StatelessWidget {
   final int offlineThresholdSeconds;
   final TTNProfile? selectedProfile;
   final VoidCallback? onSendStopAlarm;
+  final String batteryMode; // NEW
 
   const MetricsDashboard({
     super.key,
@@ -17,6 +18,7 @@ class MetricsDashboard extends StatelessWidget {
     required this.offlineThresholdSeconds,
     required this.selectedProfile,
     this.onSendStopAlarm,
+    this.batteryMode = 'voltage', // Default
   });
 
   bool isDeviceOffline(DateTime? timestamp) {
@@ -190,6 +192,7 @@ class MetricsDashboard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: 10),
+                    // LOGIC FOR BATTERY / CO2
                     (currentReading!.co2 != null)
                         ? Expanded(
                             child: _buildMetricCard(
@@ -201,9 +204,13 @@ class MetricsDashboard extends StatelessWidget {
                           )
                         : Expanded(
                             child: _buildMetricCard(
-                              "Battery",
-                              "${currentReading!.battery?.toStringAsFixed(2) ?? '--'} V",
-                              Icons.battery_charging_full,
+                              batteryMode == 'percentage' ? "Battery Level" : "Battery Voltage",
+                              batteryMode == 'percentage' 
+                                  ? "${currentReading!.battery?.toStringAsFixed(0) ?? '--'} %"
+                                  : "${currentReading!.battery?.toStringAsFixed(2) ?? '--'} V",
+                              batteryMode == 'percentage' 
+                                  ? Icons.battery_full 
+                                  : Icons.battery_charging_full,
                               Colors.green,
                             ),
                           ),

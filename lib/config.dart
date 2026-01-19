@@ -2,8 +2,8 @@ import 'models.dart';
 
 // --- Cloud Database Configuration ---
 // TODO: Replace with your actual Supabase URL and Anon Key
-const String supabaseUrl = 'https://eyjpxmyyzmtgjnprniip.supabase.co';
-const String supabaseAnonKey = 'sb_publishable_y_OBEg5wMHy-ODBZ8YbRDw_E6AxeKir';
+const String supabaseUrl = ''; //'https://eyjpxmyyzmtgjnprniip.supabase.co';
+const String supabaseAnonKey = ''; //'sb_publishable_CAW_VkvdfGt2g-ssYNsH9g_BJFWCrdn';
 
 // --- Configuration ---
 final List<TTNProfile> ttnProfiles = [

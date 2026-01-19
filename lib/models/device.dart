@@ -7,6 +7,7 @@ class Device {
   final String? accessKey; // API key (optional, could be loaded from secure storage)
   final bool canControl; // Can send downlink commands?
   final String deviceType; // Device type: 'TTN', 'Dragino', etc.
+  final String batteryMode;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,6 +20,7 @@ class Device {
     this.accessKey,
     this.canControl = false,
     this.deviceType = 'TTN',
+    this.batteryMode = 'voltage', // Default to voltage
     required this.createdAt,
     required this.updatedAt,
   });
@@ -32,6 +34,7 @@ class Device {
     String? accessKey,
     bool? canControl,
     String? deviceType,
+    String? batteryMode, // Add here
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -44,6 +47,7 @@ class Device {
       accessKey: accessKey ?? this.accessKey,
       canControl: canControl ?? this.canControl,
       deviceType: deviceType ?? this.deviceType,
+      batteryMode: batteryMode ?? this.batteryMode, // Add here
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -59,6 +63,7 @@ class Device {
       'accessKey': accessKey,
       'canControl': canControl,
       'deviceType': deviceType,
+      'batteryMode': batteryMode, // Add here
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -72,6 +77,7 @@ class Device {
       broker: json['broker'],
       deviceEui: json['deviceEui'],
       deviceType: json['deviceType'] ?? 'TTN',
+      batteryMode: json['batteryMode'] ?? 'voltage', // Add here (with fallback)
       accessKey: json['accessKey'],
       canControl: json['canControl'] ?? false,
       createdAt: DateTime.parse(json['createdAt']),
@@ -89,6 +95,7 @@ class Device {
           appId == other.appId &&
           broker == other.broker &&
           deviceEui == other.deviceEui &&
+          batteryMode == other.batteryMode && // Add here
           accessKey == other.accessKey &&
           canControl == other.canControl &&
           createdAt == other.createdAt &&
@@ -103,6 +110,8 @@ class Device {
       deviceEui.hashCode ^
       accessKey.hashCode ^
       canControl.hashCode ^
+      deviceType.hashCode ^
+      batteryMode.hashCode ^ // Add here
       createdAt.hashCode ^
       updatedAt.hashCode;
 }

@@ -7,6 +7,7 @@ class HistoryView extends StatefulWidget {
   final bool isLoading;
   final VoidCallback onLoad;
   final DatabaseService databaseService;
+  final bool isAscending; // <--- NUEVO CAMPO
 
   const HistoryView({
     super.key,
@@ -14,6 +15,7 @@ class HistoryView extends StatefulWidget {
     this.isLoading = false,
     required this.onLoad,
     required this.databaseService,
+    this.isAscending = false, // Valor por defecto
   });
 
   @override
@@ -31,29 +33,46 @@ class _HistoryViewState extends State<HistoryView> {
     _setupRealtimeListener();
   }
 
+
+// --- NUEVO: ESTO ARREGLA QUE NO SE ACTUALICE EL ORDEN ---
+  @override
+  void didUpdateWidget(HistoryView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si los datos originales cambian (ej. al reordenar), actualizamos la lista local
+    if (widget.historicalData != oldWidget.historicalData) {
+      setState(() {
+        _liveData = List.from(widget.historicalData);
+      });
+    }
+  }
+
   void _setupRealtimeListener() {
-    // Subscribe to periodic updates (every 2 seconds)
     _subscription = widget.databaseService.subscribeToReadings().listen(
       (newReadings) {
         if (!mounted) return;
         setState(() {
-          // Merge new readings, keeping only most recent 100
-          final Set<String> existingIds = {};
-          for (var item in _liveData) {
-            existingIds.add('${item['id']}');
-          }
+          final Set<String> existingIds = _liveData.map((e) => '${e['id']}').toSet();
 
           for (var reading in newReadings) {
             final id = '${reading['id']}';
             if (!existingIds.contains(id)) {
-              _liveData.insert(0, reading);
+              // --- NUEVA LÓGICA DE ORDENAMIENTO ---
+              if (widget.isAscending) {
+                _liveData.add(reading); // Ascendente: Nuevos al final
+              } else {
+                _liveData.insert(0, reading); // Descendente: Nuevos al principio (Default)
+              }
               existingIds.add(id);
             }
           }
-
-          // Keep only the most recent 100 readings
+          
+          // Limpieza opcional (mantener límite)
           if (_liveData.length > 100) {
-            _liveData = _liveData.sublist(0, 100);
+            if (widget.isAscending) {
+               _liveData.removeRange(0, _liveData.length - 100); // Quitar viejos del principio
+            } else {
+               _liveData = _liveData.sublist(0, 100); // Quitar viejos del final
+            }
           }
         });
       },

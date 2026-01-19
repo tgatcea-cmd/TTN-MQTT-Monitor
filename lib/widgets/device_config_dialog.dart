@@ -23,6 +23,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
   late TextEditingController _apiKeyController;
   late bool _canControl;
   late String _deviceType;
+  late String _batteryMode; // NEW
 
   @override
   void initState() {
@@ -30,12 +31,13 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
     _nameController = TextEditingController(text: widget.device?.name ?? '');
     _appIdController = TextEditingController(text: widget.device?.appId ?? '');
     _brokerController =
-        TextEditingController(text: widget.device?.broker ?? 'eu.cloud.thingnetwork.org');
+        TextEditingController(text: widget.device?.broker ?? 'eu1.cloud.thethings.network');
     _deviceEuiController =
         TextEditingController(text: widget.device?.deviceEui ?? '');
     _apiKeyController = TextEditingController(text: widget.device?.accessKey ?? '');
     _canControl = widget.device?.canControl ?? false;
     _deviceType = widget.device?.deviceType ?? 'TTN';
+    _batteryMode = widget.device?.batteryMode ?? 'voltage'; // Init
   }
 
   @override
@@ -68,6 +70,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       accessKey: _apiKeyController.text,
       canControl: _canControl,
       deviceType: _deviceType,
+      batteryMode: _batteryMode, // Save
       createdAt: widget.device?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -107,7 +110,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
               controller: _brokerController,
               decoration: InputDecoration(
                 labelText: 'MQTT Broker',
-                hintText: 'e.g., eu.cloud.thingnetwork.org',
+                hintText: 'e.g., eu1.cloud.thethings.network',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -128,6 +131,22 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                     _deviceType = value;
                   });
                 }
+              },
+            ),
+            SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _batteryMode,
+              decoration: InputDecoration(
+                labelText: 'Battery Display Mode',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.battery_std),
+              ),
+              items: [
+                DropdownMenuItem(value: 'voltage', child: Text('Voltage (V)')),
+                DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _batteryMode = value);
               },
             ),
             SizedBox(height: 12),

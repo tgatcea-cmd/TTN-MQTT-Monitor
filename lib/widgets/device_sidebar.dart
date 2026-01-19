@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/device.dart';
+import 'database_config_dialog.dart';
 
 class DeviceSidebar extends StatelessWidget {
   final List<Device> devices;
@@ -116,21 +117,42 @@ class DeviceSidebar extends StatelessWidget {
               ],
             ),
           ),
+
           Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // REMOVED: Navigator.pop(context);
-                onAddDevice();
-              },
-              icon: Icon(Icons.add),
-              label: Text('Add Device'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                foregroundColor: Colors.white,
-                minimumSize: Size(double.infinity, 48),
-              ),
+            child: Column(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: onAddDevice, // Tu función existente
+                  icon: Icon(Icons.add),
+                  label: Text('Add Device'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(double.infinity, 48),
+                  ),
+                ),
+                SizedBox(height: 8),
+                // --- NUEVO BOTÓN DE CONFIGURACIÓN ---
+                OutlinedButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => DatabaseConfigDialog(
+                        onSaved: () {
+                          // Opcional: Forzar recarga o mostrar aviso de reinicio
+                        },
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.settings_applications),
+                  label: Text('DB Config'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: Size(double.infinity, 48),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

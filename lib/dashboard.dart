@@ -27,7 +27,6 @@ class _MqttDashboardState extends State<MqttDashboard> {
   final DeviceService _deviceService = DeviceService();
 
   final Map<String, MqttWrapper> _activeClients = {};
-
   final List<StreamSubscription> _subscriptions = [];
 
   late MqttHandlers _mqttHandlers;
@@ -47,7 +46,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
   static const int _offlineThresholdSeconds = 60 * 16;
 
   String lastLog = "System Ready.";
-  List<Map<String, dynamic>> _historicalData = [];
+
+  final Map<String, List<Map<String, dynamic>>> _historyCache = {};
 
   Timer? _offlineTimer;
 
@@ -76,8 +76,6 @@ class _MqttDashboardState extends State<MqttDashboard> {
 
     if (!mounted) return;
 
-    _refreshMHO();
-
     setState(() {
       devices = devicesWithKeys;
       isLoadingDevices = false;
@@ -88,6 +86,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
         }
       }
     });
+
+    _refreshMHO();
   }
 
   void _initMqttHandlers() {
@@ -99,6 +99,32 @@ class _MqttDashboardState extends State<MqttDashboard> {
         setState(() {
           deviceReadings[sourceDeviceId] = data;
           _lastReadingByDevice[sourceDeviceId] = data.timestamp;
+
+          if (_historyCache.containsKey(sourceDeviceId)) {
+            final newPoint = {
+              'temperature': data.temperature,
+              'humidity': data.humidity,
+              'co2': data.co2,
+              'battery': data.battery,
+              'timestamp': data.timestamp.toIso8601String(),
+              'device_id': sourceDeviceId,
+            };
+
+            final list = _historyCache[sourceDeviceId]!;
+
+            if (_sortAscending) {
+              list.add(newPoint);
+            } else {
+              list.insert(0, newPoint);
+            }
+
+            if (list.length > 150) {
+              if (_sortAscending)
+                list.removeAt(0);
+              else
+                list.removeLast();
+            }
+          }
         });
       },
       onStatusUpdated: (status) {
@@ -142,8 +168,11 @@ class _MqttDashboardState extends State<MqttDashboard> {
   }
 
   void sendStopAlarm() {
-    if (!isMonitoring || selectedDevice == null || !selectedDevice!.canControl)
+    if (!isMonitoring ||
+        selectedDevice == null ||
+        !selectedDevice!.canControl) {
       return;
+    }
 
     final client = _activeClients[selectedDevice!.appId];
     if (client == null) {
@@ -167,7 +196,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
 
   void _refreshMHO() async {
     if (selectedDevice == null) return;
-    final stats = await _databaseService.getDailyStats(selectedDevice!.id);
+    final stats = await _databaseService.getDailyStats(
+      selectedDevice!.deviceEui,
+    );
     if (mounted) {
       setState(() {
         _currentMHO = stats['mho'];
@@ -244,24 +275,37 @@ class _MqttDashboardState extends State<MqttDashboard> {
     );
   }
 
-  void _loadHistoricalData() async {
+  void _loadDeviceHistory(String deviceId) async {
+    final device = devices.firstWhere(
+      (d) => d.id == deviceId,
+      orElse: () => devices.first,
+    );
+
+    if (_historyCache.containsKey(deviceId) &&
+        _historyCache[deviceId]!.isNotEmpty) {
+      return;
+    }
+
     try {
-      final data = await _databaseService.getLatestReadings(
+      final data = await _databaseService.getSensorReadings(
+        deviceId: device.deviceEui,
         limit: 100,
-        ascending: _sortAscending,
       );
+
       if (mounted) {
         setState(() {
-          _historicalData = data;
+          _historyCache[deviceId] = data;
         });
       }
     } catch (e) {
-      debugPrint("Error loading historical data: $e");
+      debugPrint("Error loading history for ${device.deviceEui}: $e");
     }
   }
 
   void _showHistoryView() {
-    _loadHistoricalData();
+    if (selectedDevice != null) {
+      _loadDeviceHistory(selectedDevice!.id);
+    }
     setState(() => _showHistory = true);
   }
 
@@ -316,6 +360,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
     try {
       await _databaseService.insertTestSensorReading(sensorData);
 
+      _loadDeviceHistory(testId);
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -367,30 +413,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
               );
             }
 
-            final loadedDevices = await _deviceService.getAllDevices();
-            final devicesWithKeys = <Device>[];
-            for (var d in loadedDevices) {
-              final apiKey = await _deviceService.getDeviceApiKey(d.appId);
-              devicesWithKeys.add(
-                apiKey != null ? d.copyWith(accessKey: apiKey) : d,
-              );
-            }
-
-            if (!mounted) return;
-
-            Device? newSelectedDevice = selectedDevice;
-            if (device == null && devicesWithKeys.isNotEmpty) {
-              newSelectedDevice = devicesWithKeys.lastWhere(
-                (d) => !devices.any((old) => old.id == d.id),
-                orElse: () => devicesWithKeys.last,
-              );
-              deviceReadings[newSelectedDevice.id] = null;
-            }
-
-            setState(() {
-              devices = devicesWithKeys;
-              selectedDevice = newSelectedDevice;
-            });
+            await _initDeviceService();
 
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
@@ -405,13 +428,10 @@ class _MqttDashboardState extends State<MqttDashboard> {
             if (wasMonitoring && mounted) {
               _stopMonitoring();
               await Future.delayed(Duration(milliseconds: 500));
-              if (mounted) {
-                _startMonitoring();
-              }
+              if (mounted) _startMonitoring();
             }
           } catch (e) {
             if (mounted) {
-              Navigator.pop(dialogBuildContext);
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -439,6 +459,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
           selectedDevice = devices.isNotEmpty ? devices.first : null;
         }
         deviceReadings.remove(device.id);
+        _historyCache.remove(device.id);
       });
 
       if (!mounted) return;
@@ -454,6 +475,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
+
+    _historyCache.remove(device.id);
   }
 
   bool _isDeviceOffline(String deviceId) {
@@ -518,6 +541,13 @@ class _MqttDashboardState extends State<MqttDashboard> {
                   onDeviceSelected: (device) {
                     setState(() {
                       selectedDevice = device;
+                      if (_showHistory)
+                        _loadDeviceHistory(device.id);
+                      else {
+                        deviceReadings[device.id] = null;
+                        _currentMHO = null;
+                        _refreshMHO();
+                      }
                     });
                   },
                   onAddDevice: () => _addOrEditDevice(null),
@@ -626,7 +656,11 @@ class _MqttDashboardState extends State<MqttDashboard> {
 
                 SizedBox(height: 16),
 
-                if (_showHistory) ...[
+                if (devices.isEmpty)
+                  const Expanded(
+                    child: Center(child: Text("Add a device to begin")),
+                  )
+                else if (_showHistory) ...[
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16.0,
@@ -637,10 +671,10 @@ class _MqttDashboardState extends State<MqttDashboard> {
                       children: [
                         OutlinedButton.icon(
                           onPressed: () {
-                            setState(() {
-                              _sortAscending = !_sortAscending;
-                            });
-                            _loadHistoricalData();
+                            setState(() => _sortAscending = !_sortAscending);
+                            if (selectedDevice != null)
+                              _historyCache.remove(selectedDevice!.id);
+                            _loadDeviceHistory(selectedDevice!.id);
                           },
                           icon: Icon(
                             _sortAscending
@@ -648,48 +682,53 @@ class _MqttDashboardState extends State<MqttDashboard> {
                                 : Icons.arrow_downward,
                           ),
                           label: Text(
-                            _sortAscending
-                                ? "Más Antiguos Primero"
-                                : "Más Recientes Primero",
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: Colors.white,
+                            _sortAscending ? "Oldest First" : "Newest First",
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: SensorChart(
-                      historicalData: _historicalData,
-                      isAscending: _sortAscending,
+                  Expanded(
+                    flex: 5,
+                    child: DeviceCameraRoll(
+                      devices: devices,
+                      selectedDevice: selectedDevice,
+                      onDeviceChanged: (device) {
+                        setState(() => selectedDevice = device);
+                        _loadDeviceHistory(device.id);
+                      },
+                      deviceViewBuilder: (device) {
+                        return Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: SensorChart(
+                            historicalData: _historyCache[device.id] ?? [],
+                            isAscending: _sortAscending,
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  SizedBox(height: 10),
 
                   Expanded(
+                    flex: 4,
                     child: HistoryView(
                       databaseService: _databaseService,
-                      historicalData: _historicalData,
-                      onLoad: _loadHistoricalData,
+                      historicalData: _historyCache[selectedDevice?.id] ?? [],
+                      onLoad: () {
+                        if (selectedDevice != null)
+                          _loadDeviceHistory(selectedDevice!.id);
+                      },
                       isAscending: _sortAscending,
                     ),
                   ),
-                ] else if (devices.isEmpty)
-                  const Expanded(
-                    child: Center(child: Text("Add a device to begin")),
-                  )
-                else
+                ] else ...[
                   Expanded(
                     child: DeviceCameraRoll(
                       devices: devices,
                       selectedDevice: selectedDevice,
                       onDeviceChanged: (device) {
                         setState(() {
-                          deviceReadings[device.id] = null;
-                          _currentMHO = null;
                           selectedDevice = device;
                         });
                         _refreshMHO();
@@ -697,6 +736,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                       deviceViewBuilder: _buildDeviceView,
                     ),
                   ),
+                ],
               ],
             ),
           ),

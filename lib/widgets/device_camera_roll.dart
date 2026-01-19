@@ -29,16 +29,31 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-    _setInitialPage();
+    _currentIndex = _calculateInitialIndex();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  int _calculateInitialIndex() {
+    if (widget.selectedDevice == null || widget.devices.isEmpty) return 0;
+    final index = widget.devices.indexWhere(
+      (d) => d.id == widget.selectedDevice!.id,
+    );
+    return index != -1 ? index : 0;
   }
 
   @override
   void didUpdateWidget(DeviceCameraRoll oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.selectedDevice?.id != oldWidget.selectedDevice?.id ||
-        widget.devices.length != oldWidget.devices.length) {
-      _setInitialPage();
+    if (widget.selectedDevice?.id != oldWidget.selectedDevice?.id) {
+      final newIndex = _calculateInitialIndex();
+      if (newIndex != _currentIndex && _pageController.hasClients) {
+        _currentIndex = newIndex;
+        _pageController.animateToPage(
+          newIndex,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
     }
   }
 
@@ -116,7 +131,9 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
               controller: _pageController,
               onPageChanged: (index) {
                 setState(() => _currentIndex = index);
-                widget.onDeviceChanged(widget.devices[index]);
+                if (index >= 0 && index < widget.devices.length) {
+                  widget.onDeviceChanged(widget.devices[index]);
+                }
               },
               itemCount: widget.devices.length,
               itemBuilder: (context, index) =>

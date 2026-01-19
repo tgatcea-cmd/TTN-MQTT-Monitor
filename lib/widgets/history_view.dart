@@ -8,6 +8,7 @@ class HistoryView extends StatefulWidget {
   final VoidCallback onLoad;
   final DatabaseService databaseService;
   final bool isAscending;
+  final String? deviceId;
 
   const HistoryView({
     super.key,
@@ -16,6 +17,7 @@ class HistoryView extends StatefulWidget {
     required this.onLoad,
     required this.databaseService,
     this.isAscending = false,
+    this.deviceId,
   });
 
   @override
@@ -24,7 +26,7 @@ class HistoryView extends StatefulWidget {
 
 class _HistoryViewState extends State<HistoryView> {
   late List<Map<String, dynamic>> _liveData;
-  late StreamSubscription? _subscription;
+  StreamSubscription? _subscription;
 
   @override
   void initState() {
@@ -42,42 +44,51 @@ class _HistoryViewState extends State<HistoryView> {
         _liveData = List.from(widget.historicalData);
       });
     }
+
+    if (widget.deviceId != oldWidget.deviceId) {
+      _subscription?.cancel();
+      _setupRealtimeListener();
+    }
   }
 
   void _setupRealtimeListener() {
-    _subscription = widget.databaseService.subscribeToReadings().listen(
-      (newReadings) {
-        if (!mounted) return;
-        setState(() {
-          final Set<String> existingIds = _liveData
-              .map((e) => '${e['id']}')
-              .toSet();
+    if (widget.deviceId == null) return;
 
-          for (var reading in newReadings) {
-            final id = '${reading['id']}';
-            if (!existingIds.contains(id)) {
-              if (widget.isAscending) {
-                _liveData.add(reading);
-              } else {
-                _liveData.insert(0, reading);
+    _subscription = widget.databaseService
+        .subscribeToReadings(deviceId: widget.deviceId)
+        .listen(
+          (newReadings) {
+            if (!mounted) return;
+            setState(() {
+              final Set<String> existingIds = _liveData
+                  .map((e) => '${e['id']}')
+                  .toSet();
+
+              for (var reading in newReadings) {
+                final id = '${reading['id']}';
+                if (!existingIds.contains(id)) {
+                  if (widget.isAscending) {
+                    _liveData.add(reading);
+                  } else {
+                    _liveData.insert(0, reading);
+                  }
+                  existingIds.add(id);
+                }
               }
-              existingIds.add(id);
-            }
-          }
 
-          if (_liveData.length > 100) {
-            if (widget.isAscending) {
-              _liveData.removeRange(0, _liveData.length - 100);
-            } else {
-              _liveData = _liveData.sublist(0, 100);
-            }
-          }
-        });
-      },
-      onError: (error) {
-        debugPrint('Real-time subscription error: $error');
-      },
-    );
+              if (_liveData.length > 150) {
+                if (widget.isAscending) {
+                  _liveData.removeRange(0, _liveData.length - 150);
+                } else {
+                  _liveData = _liveData.sublist(0, 150);
+                }
+              }
+            });
+          },
+          onError: (error) {
+            debugPrint('Real-time subscription error: $error');
+          },
+        );
   }
 
   @override

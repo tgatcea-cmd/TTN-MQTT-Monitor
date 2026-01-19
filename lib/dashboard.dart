@@ -720,6 +720,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
                           _loadDeviceHistory(selectedDevice!.id);
                       },
                       isAscending: _sortAscending,
+
+                      deviceId: selectedDevice?.id,
                     ),
                   ),
                 ] else ...[

@@ -4,21 +4,23 @@ import '../models.dart';
 class MetricsDashboard extends StatelessWidget {
   final SensorData? currentReading;
   final bool offline;
-  final bool isMonitoring; // NEW: Added to track monitoring state
+  final bool isMonitoring;
   final int offlineThresholdSeconds;
   final TTNProfile? selectedProfile;
   final VoidCallback? onSendStopAlarm;
-  final String batteryMode; // NEW
+  final String batteryMode;
+  final double? dailyMHO;
 
   const MetricsDashboard({
     super.key,
     required this.currentReading,
     required this.offline,
-    required this.isMonitoring, // NEW
+    required this.isMonitoring,
     required this.offlineThresholdSeconds,
     required this.selectedProfile,
     this.onSendStopAlarm,
-    this.batteryMode = 'voltage', // Default
+    this.batteryMode = 'voltage',
+    this.dailyMHO,
   });
 
   bool isDeviceOffline(DateTime? timestamp) {
@@ -68,15 +70,17 @@ class MetricsDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // If we don't have an in-memory reading
     if (currentReading == null) {
-      // CASE 1: Monitoring is OFF - Show Idle Message
       if (!isMonitoring) {
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.pause_circle_outline, size: 64, color: Colors.grey[400]),
+              Icon(
+                Icons.pause_circle_outline,
+                size: 64,
+                color: Colors.grey[400],
+              ),
               SizedBox(height: 16),
               Text(
                 "System Idle",
@@ -96,11 +100,9 @@ class MetricsDashboard extends StatelessWidget {
         );
       }
 
-      // CASE 2: Monitoring is ON but no data yet - Show Loading
       return Column(
         children: [
-          if (offline)
-            _buildOfflineBanner(),
+          if (offline) _buildOfflineBanner(),
           Center(
             child: Column(
               children: [
@@ -121,13 +123,10 @@ class MetricsDashboard extends StatelessWidget {
       );
     }
 
-    // Normal State with Data
     return Column(
       children: [
-        // Offline Warning
         if (offline) _buildOfflineBanner(),
 
-        // Alert Banner
         if ((currentReading!.co2 ?? 0) > 1000)
           Container(
             width: double.infinity,
@@ -154,7 +153,6 @@ class MetricsDashboard extends StatelessWidget {
             ),
           ),
 
-        // Metrics Grid
         Builder(
           builder: (context) {
             final metricsArea = Column(
@@ -192,7 +190,7 @@ class MetricsDashboard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: 10),
-                    // LOGIC FOR BATTERY / CO2
+
                     (currentReading!.co2 != null)
                         ? Expanded(
                             child: _buildMetricCard(
@@ -204,27 +202,90 @@ class MetricsDashboard extends StatelessWidget {
                           )
                         : Expanded(
                             child: _buildMetricCard(
-                              batteryMode == 'percentage' ? "Battery Level" : "Battery Voltage",
-                              batteryMode == 'percentage' 
+                              batteryMode == 'percentage'
+                                  ? "Battery Level"
+                                  : "Battery Voltage",
+                              batteryMode == 'percentage'
                                   ? "${currentReading!.battery?.toStringAsFixed(0) ?? '--'} %"
                                   : "${currentReading!.battery?.toStringAsFixed(2) ?? '--'} V",
-                              batteryMode == 'percentage' 
-                                  ? Icons.battery_full 
+                              batteryMode == 'percentage'
+                                  ? Icons.battery_full
                                   : Icons.battery_charging_full,
                               Colors.green,
                             ),
                           ),
                   ],
                 ),
+                SizedBox(height: 10),
+
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.indigo.shade100),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Máxima Oscilación Diaria (MHO)",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo,
+                            ),
+                          ),
+                          Text(
+                            "Estrés térmico acumulado hoy",
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.indigo.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        "${dailyMHO?.toStringAsFixed(2) ?? '--'} Δ°C",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+
+                          color: (dailyMHO ?? 0) > 5.0
+                              ? Colors.red
+                              : Colors.indigo,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             );
 
             if (offline) {
               const List<double> greyMatrix = <double>[
-                0.2126, 0.7152, 0.0722, 0, 0,
-                0.2126, 0.7152, 0.0722, 0, 0,
-                0.2126, 0.7152, 0.0722, 0, 0,
-                0, 0, 0, 1, 0,
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                0,
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                0,
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
               ];
               return ColorFiltered(
                 colorFilter: const ColorFilter.matrix(greyMatrix),
@@ -238,7 +299,6 @@ class MetricsDashboard extends StatelessWidget {
 
         SizedBox(height: 20),
 
-        // Stop Alarm Button (Only for controllable profiles)
         if (selectedProfile?.canControl == true)
           SizedBox(
             width: double.infinity,
@@ -250,8 +310,7 @@ class MetricsDashboard extends StatelessWidget {
                 backgroundColor: Colors.redAccent,
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.all(20),
-                textStyle:
-                    TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -275,10 +334,7 @@ class MetricsDashboard extends StatelessWidget {
           SizedBox(width: 10),
           Text(
             "DEVICE OFFLINE (No data > ${(offlineThresholdSeconds ~/ 60)} mins)",
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ],
       ),

@@ -1,12 +1,12 @@
 class Device {
-  final String id; // Unique ID (usually appId)
-  final String name; // User-friendly name
-  final String appId; // TTN App ID
-  final String broker; // MQTT broker
-  final String deviceEui; // Device EUI
-  final String? accessKey; // API key (optional, could be loaded from secure storage)
-  final bool canControl; // Can send downlink commands?
-  final String deviceType; // Device type: 'TTN', 'Dragino', etc.
+  final String id;
+  final String name;
+  final String appId;
+  final String broker;
+  final String deviceEui;
+  final String? accessKey;
+  final bool canControl;
+  final String deviceType;
   final String batteryMode;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -20,7 +20,7 @@ class Device {
     this.accessKey,
     this.canControl = false,
     this.deviceType = 'TTN',
-    this.batteryMode = 'voltage', // Default to voltage
+    this.batteryMode = 'voltage',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -34,7 +34,7 @@ class Device {
     String? accessKey,
     bool? canControl,
     String? deviceType,
-    String? batteryMode, // Add here
+    String? batteryMode,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -47,7 +47,7 @@ class Device {
       accessKey: accessKey ?? this.accessKey,
       canControl: canControl ?? this.canControl,
       deviceType: deviceType ?? this.deviceType,
-      batteryMode: batteryMode ?? this.batteryMode, // Add here
+      batteryMode: batteryMode ?? this.batteryMode,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -63,7 +63,7 @@ class Device {
       'accessKey': accessKey,
       'canControl': canControl,
       'deviceType': deviceType,
-      'batteryMode': batteryMode, // Add here
+      'batteryMode': batteryMode,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -77,7 +77,7 @@ class Device {
       broker: json['broker'],
       deviceEui: json['deviceEui'],
       deviceType: json['deviceType'] ?? 'TTN',
-      batteryMode: json['batteryMode'] ?? 'voltage', // Add here (with fallback)
+      batteryMode: json['batteryMode'] ?? 'voltage',
       accessKey: json['accessKey'],
       canControl: json['canControl'] ?? false,
       createdAt: DateTime.parse(json['createdAt']),
@@ -95,7 +95,7 @@ class Device {
           appId == other.appId &&
           broker == other.broker &&
           deviceEui == other.deviceEui &&
-          batteryMode == other.batteryMode && // Add here
+          batteryMode == other.batteryMode &&
           accessKey == other.accessKey &&
           canControl == other.canControl &&
           createdAt == other.createdAt &&
@@ -111,7 +111,7 @@ class Device {
       accessKey.hashCode ^
       canControl.hashCode ^
       deviceType.hashCode ^
-      batteryMode.hashCode ^ // Add here
+      batteryMode.hashCode ^
       createdAt.hashCode ^
       updatedAt.hashCode;
 }

@@ -1,13 +1,12 @@
 import 'dart:math';
 
-// --- Data Models ---
 class TTNProfile {
   final String name;
   final String appId;
   final String broker;
   String? accessKey;
-  final bool canControl; // Does this device accept "Stop Alarm"?
-  final String? defaultDeviceId; // Preferred device for this profile
+  final bool canControl;
+  final String? defaultDeviceId;
 
   TTNProfile({
     required this.name,
@@ -26,8 +25,7 @@ class SensorData {
   final double? battery;
   final double dewPoint;
   final DateTime timestamp;
-  
-  // For flexible/custom fields
+
   final Map<String, dynamic>? customFields;
   final String? deviceType;
 
@@ -43,7 +41,6 @@ class SensorData {
   });
 }
 
-// --- Utility Functions ---
 double calculateDewPoint(double temp, double rh) {
   const b = 17.62;
   const c = 243.12;
@@ -51,16 +48,13 @@ double calculateDewPoint(double temp, double rh) {
   return (c * gamma) / (b - gamma);
 }
 
-// Smart Finder: Finds 'temperature', 'temperature_1', etc.
 double? findValue(Map<String, dynamic> payload, String baseKey) {
   if (payload.containsKey(baseKey)) return payload[baseKey]?.toDouble();
 
-  // Scan for CayenneLPP suffixes (e.g., temperature_1)
   for (var key in payload.keys) {
     if (key.startsWith('${baseKey}_')) return payload[key]?.toDouble();
   }
 
-  // Special Mappings
   if (baseKey == 'humidity') {
     for (var key in payload.keys) {
       if (key.startsWith('relative_humidity_')) return payload[key]?.toDouble();

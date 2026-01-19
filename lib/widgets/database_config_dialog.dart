@@ -35,24 +35,31 @@ class _DatabaseConfigDialogState extends State<DatabaseConfigDialog> {
   Future<void> _save() async {
     if (_urlController.text.isEmpty || _keyController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('URL y Key son obligatorias'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('URL y Key son obligatorias'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     setState(() => _isLoading = true);
-    
-    // Guardar en almacenamiento seguro
+
     await _storage.saveDatabaseConfig(
-      _urlController.text.trim(), 
-      _keyController.text.trim()
+      _urlController.text.trim(),
+      _keyController.text.trim(),
     );
 
     setState(() => _isLoading = false);
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Configuración guardada. Reinicia la app si es necesario.'), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text(
+            'Configuración guardada. Reinicia la app si es necesario.',
+          ),
+          backgroundColor: Colors.green,
+        ),
       );
       widget.onSaved();
       Navigator.pop(context);
@@ -95,7 +102,7 @@ class _DatabaseConfigDialogState extends State<DatabaseConfigDialog> {
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.vpn_key),
             ),
-            obscureText: true, // Ocultar la clave visualmente
+            obscureText: true,
             maxLines: 1,
           ),
         ],
@@ -107,9 +114,13 @@ class _DatabaseConfigDialogState extends State<DatabaseConfigDialog> {
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _save,
-          child: _isLoading 
-            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-            : Text('Guardar Conexión'),
+          child: _isLoading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text('Guardar Conexión'),
         ),
       ],
     );

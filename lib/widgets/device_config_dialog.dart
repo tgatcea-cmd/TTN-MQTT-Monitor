@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import '../models/device.dart';
 
 class DeviceConfigDialog extends StatefulWidget {
-  final Device? device; // null for new device, otherwise edit existing
+  final Device? device;
   final Function(Device) onSave;
 
-  const DeviceConfigDialog({
-    super.key,
-    this.device,
-    required this.onSave,
-  });
+  const DeviceConfigDialog({super.key, this.device, required this.onSave});
 
   @override
   State<DeviceConfigDialog> createState() => _DeviceConfigDialogState();
@@ -23,21 +19,25 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
   late TextEditingController _apiKeyController;
   late bool _canControl;
   late String _deviceType;
-  late String _batteryMode; // NEW
+  late String _batteryMode;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.device?.name ?? '');
     _appIdController = TextEditingController(text: widget.device?.appId ?? '');
-    _brokerController =
-        TextEditingController(text: widget.device?.broker ?? 'eu1.cloud.thethings.network');
-    _deviceEuiController =
-        TextEditingController(text: widget.device?.deviceEui ?? '');
-    _apiKeyController = TextEditingController(text: widget.device?.accessKey ?? '');
+    _brokerController = TextEditingController(
+      text: widget.device?.broker ?? 'eu1.cloud.thethings.network',
+    );
+    _deviceEuiController = TextEditingController(
+      text: widget.device?.deviceEui ?? '',
+    );
+    _apiKeyController = TextEditingController(
+      text: widget.device?.accessKey ?? '',
+    );
     _canControl = widget.device?.canControl ?? false;
     _deviceType = widget.device?.deviceType ?? 'TTN';
-    _batteryMode = widget.device?.batteryMode ?? 'voltage'; // Init
+    _batteryMode = widget.device?.batteryMode ?? 'voltage';
   }
 
   @override
@@ -56,7 +56,10 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
         _deviceEuiController.text.isEmpty ||
         _apiKeyController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('All fields are required'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('All fields are required'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -70,7 +73,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       accessKey: _apiKeyController.text,
       canControl: _canControl,
       deviceType: _deviceType,
-      batteryMode: _batteryMode, // Save
+      batteryMode: _batteryMode,
       createdAt: widget.device?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -103,7 +106,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                 hintText: 'e.g., app@ttn',
                 border: OutlineInputBorder(),
               ),
-              readOnly: widget.device != null, // Can't change ID on edit
+              readOnly: widget.device != null,
             ),
             SizedBox(height: 12),
             TextField(
@@ -122,8 +125,14 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                 border: OutlineInputBorder(),
               ),
               items: [
-                DropdownMenuItem(value: 'TTN', child: Text('TTN / Standard LoRaWAN')),
-                DropdownMenuItem(value: 'Dragino', child: Text('Dragino LPS8v2')),
+                DropdownMenuItem(
+                  value: 'TTN',
+                  child: Text('TTN / Standard LoRaWAN'),
+                ),
+                DropdownMenuItem(
+                  value: 'Dragino',
+                  child: Text('Dragino LPS8v2'),
+                ),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -143,7 +152,10 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
               ),
               items: [
                 DropdownMenuItem(value: 'voltage', child: Text('Voltage (V)')),
-                DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)')),
+                DropdownMenuItem(
+                  value: 'percentage',
+                  child: Text('Percentage (%)'),
+                ),
               ],
               onChanged: (value) {
                 if (value != null) setState(() => _batteryMode = value);

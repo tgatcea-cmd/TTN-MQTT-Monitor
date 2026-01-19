@@ -23,8 +23,7 @@ class DeviceCameraRoll extends StatefulWidget {
 class _DeviceCameraRollState extends State<DeviceCameraRoll> {
   late PageController _pageController;
   int _currentIndex = 0;
-  
-  // To debounce wheel events so one scroll doesn't skip 10 pages
+
   DateTime _lastScrollTime = DateTime.now();
 
   @override
@@ -62,14 +61,12 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
     }
   }
 
-  // CHANGED: Logic to handle mouse wheel
   void _handleScroll(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       final now = DateTime.now();
       if (now.difference(_lastScrollTime).inMilliseconds < 200) return;
 
       if (event.scrollDelta.dy > 0) {
-        // Scroll down / Next
         if (_currentIndex < widget.devices.length - 1) {
           _pageController.nextPage(
             duration: Duration(milliseconds: 300),
@@ -78,7 +75,6 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
           _lastScrollTime = now;
         }
       } else if (event.scrollDelta.dy < 0) {
-        // Scroll up / Previous
         if (_currentIndex > 0) {
           _pageController.previousPage(
             duration: Duration(milliseconds: 300),
@@ -113,7 +109,6 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
 
     return Column(
       children: [
-        // CHANGED: Wrap in Listener for mouse wheel support
         Expanded(
           child: Listener(
             onPointerSignal: _handleScroll,
@@ -129,7 +124,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
             ),
           ),
         ),
-        
+
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -149,19 +144,15 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                         children: [
                           Text(
                             widget.devices[_currentIndex].name,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           SizedBox(height: 4),
                           Text(
                             widget.devices[_currentIndex].deviceEui,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -169,7 +160,10 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                       ),
                     ),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.indigo,
                         borderRadius: BorderRadius.circular(6),
@@ -186,9 +180,9 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                   ],
                 ),
               ),
-              
+
               SizedBox(height: 12),
-              
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(

@@ -4,7 +4,7 @@ import '../config.dart';
 
 class ConnectionCard extends StatefulWidget {
   final TTNProfile? selectedProfile;
-  final bool isConnected; // This now represents "System Monitoring Active"
+  final bool isConnected;
   final String lastLog;
   final TextEditingController deviceIdController;
   final VoidCallback onConnect;
@@ -33,14 +33,11 @@ class _ConnectionCardState extends State<ConnectionCard> {
   Widget build(BuildContext context) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Header for System Status
             Row(
               children: [
                 Icon(
@@ -49,7 +46,9 @@ class _ConnectionCardState extends State<ConnectionCard> {
                 ),
                 SizedBox(width: 10),
                 Text(
-                  widget.isConnected ? "SYSTEM MONITORING ACTIVE" : "SYSTEM IDLE",
+                  widget.isConnected
+                      ? "SYSTEM MONITORING ACTIVE"
+                      : "SYSTEM IDLE",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: widget.isConnected ? Colors.green : Colors.grey,
@@ -58,8 +57,7 @@ class _ConnectionCardState extends State<ConnectionCard> {
               ],
             ),
             Divider(height: 20),
-            
-            // Profile Dropdown (Now clearly labeled as View)
+
             DropdownButtonFormField<TTNProfile>(
               decoration: InputDecoration(
                 labelText: "View Device Dashboard",
@@ -74,14 +72,11 @@ class _ConnectionCardState extends State<ConnectionCard> {
               isExpanded: true,
               onChanged: widget.onProfileChanged,
               items: ttnProfiles
-                  .map(
-                    (p) => DropdownMenuItem(value: p, child: Text(p.name)),
-                  )
+                  .map((p) => DropdownMenuItem(value: p, child: Text(p.name)))
                   .toList(),
             ),
             SizedBox(height: 10),
 
-            // Device ID Input
             if (widget.selectedProfile?.canControl == true ||
                 widget.selectedProfile?.defaultDeviceId != null)
               TextField(
@@ -100,7 +95,6 @@ class _ConnectionCardState extends State<ConnectionCard> {
 
             SizedBox(height: 15),
 
-            // Action Buttons
             Row(
               children: [
                 Expanded(
@@ -116,11 +110,13 @@ class _ConnectionCardState extends State<ConnectionCard> {
                   ),
                 ),
                 SizedBox(width: 10),
-                // Edit Key Button (Always available for selected)
+
                 OutlinedButton(
                   onPressed: widget.selectedProfile == null
                       ? null
-                      : () => widget.onShowKeyDialog?.call(widget.selectedProfile!),
+                      : () => widget.onShowKeyDialog?.call(
+                          widget.selectedProfile!,
+                        ),
                   child: Icon(
                     Icons.vpn_key,
                     color: (widget.selectedProfile?.accessKey != null)
@@ -129,7 +125,7 @@ class _ConnectionCardState extends State<ConnectionCard> {
                   ),
                 ),
                 SizedBox(width: 10),
-                // Disconnect Button
+
                 if (widget.isConnected)
                   IconButton(
                     onPressed: widget.onDisconnect,

@@ -7,11 +7,10 @@ import 'models.dart';
 import 'database_service.dart';
 import 'payload_parser.dart';
 
-/// Handles all MQTT-related operations and message processing
 class MqttHandlers {
   final DatabaseService _databaseService;
   final Function(String) onMessageReceived;
-  // CHANGED: Added profileName string to callback signature
+
   final Function(SensorData, String) onSensorDataUpdated;
   final Function(String) onStatusUpdated;
 
@@ -22,14 +21,12 @@ class MqttHandlers {
     required this.onStatusUpdated,
   }) : _databaseService = databaseService;
 
-  /// Process incoming MQTT message
   Future<void> handleMessage(
     String message,
     String? targetDeviceId,
     String? profileName, [
     String deviceType = 'TTN',
   ]) async {
-    // 1. Extract Device ID from formatted message
     String deviceId = '';
     if (message.contains('Device: ')) {
       int start = message.indexOf('Device: ') + 8;
@@ -38,7 +35,6 @@ class MqttHandlers {
       deviceId = message.substring(start, end).trim();
     }
 
-    // 2. Extract JSON payload
     if (!message.contains('{')) return;
     String cleanJson = message.substring(
       message.indexOf('{'),
@@ -48,7 +44,6 @@ class MqttHandlers {
     try {
       Map<String, dynamic> payload = jsonDecode(cleanJson);
 
-      // 3. Filter by target device ID
       if (targetDeviceId != null &&
           targetDeviceId.isNotEmpty &&
           deviceId.toLowerCase() != targetDeviceId.toLowerCase()) {
@@ -56,16 +51,14 @@ class MqttHandlers {
         return;
       }
 
-      // 4. Parse sensor data using flexible parser
       final sensorData = PayloadParser.parse(payload, deviceType);
 
-      // CHANGED: Pass profileName back to the UI handler
       onSensorDataUpdated(sensorData, profileName ?? 'Unknown');
-      
-      onStatusUpdated(
-          "Rx: ${DateTime.now().toLocal().toString().split('.')[0].split(' ')[1]} ($profileName)");
 
-      // 5. Save to database
+      onStatusUpdated(
+        "Rx: ${DateTime.now().toLocal().toString().split('.')[0].split(' ')[1]} ($profileName)",
+      );
+
       try {
         await _databaseService.insertSensorReading(
           deviceId,
@@ -82,12 +75,7 @@ class MqttHandlers {
     onMessageReceived(message);
   }
 
-  /// Send STOP alarm command via downlink
-  void sendStopAlarm(
-    MqttWrapper mqtt,
-    String appId,
-    String deviceId,
-  ) {
+  void sendStopAlarm(MqttWrapper mqtt, String appId, String deviceId) {
     String topic = 'v3/$appId/devices/$deviceId/down/push';
     String message = jsonEncode({
       "downlinks": [
@@ -99,7 +87,6 @@ class MqttHandlers {
   }
 }
 
-/// Helper function from models.dart - finds value in payload
 double? findValue(Map<String, dynamic> payload, String baseKey) {
   if (payload.containsKey(baseKey)) return payload[baseKey]?.toDouble();
   for (var key in payload.keys) {
@@ -110,7 +97,6 @@ double? findValue(Map<String, dynamic> payload, String baseKey) {
   return null;
 }
 
-/// Helper function from models.dart - calculates dew point
 double calculateDewPoint(double temp, double rh) {
   const b = 17.62;
   const c = 243.12;

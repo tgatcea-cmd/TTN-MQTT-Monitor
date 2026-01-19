@@ -13,27 +13,27 @@ class MqttWrapper {
   final int port;
   final bool secure;
 
-  final StreamController<String> _messageController = StreamController<String>.broadcast();
+  final StreamController<String> _messageController =
+      StreamController<String>.broadcast();
   Stream<String> get messages => _messageController.stream;
 
   MqttWrapper({
     required this.appId,
     required this.accessKey,
     this.broker = 'eu1.cloud.thethings.network',
-    this.port = 8883, // CHANGED: Default to Secure MQTT port
-    this.secure = true, // CHANGED: Default to Secure
+    this.port = 8883,
+    this.secure = true,
   }) {
-    // Generate a unique client ID to prevent broker disconnecting on conflict
-    String clientId = 'flutter_client_${DateTime.now().millisecondsSinceEpoch}_${appId.split('@')[0]}';
+    String clientId =
+        'flutter_client_${DateTime.now().millisecondsSinceEpoch}_${appId.split('@')[0]}';
     client = MqttServerClient(broker, clientId);
     client.port = port;
     client.secure = secure;
-    client.logging(on: false); 
+    client.logging(on: false);
     client.keepAlivePeriod = 20;
-    
-    // CHANGED: correct security context for TTN/AWS/Standard Brokers
+
     if (secure) {
-      client.onBadCertificate = (dynamic cert) => true; // Accept certificates
+      client.onBadCertificate = (dynamic cert) => true;
       client.securityContext = SecurityContext.defaultContext;
     }
 
@@ -43,11 +43,10 @@ class MqttWrapper {
   }
 
   Future<void> connect() async {
-    // CHANGED: Clean session is vital for stability
     final connMessage = MqttConnectMessage()
         .withClientIdentifier(client.clientIdentifier)
         .authenticateAs(appId, accessKey)
-        .startClean() 
+        .startClean()
         .withWillQos(MqttQos.atMostOnce);
     client.connectionMessage = connMessage;
 
@@ -66,12 +65,14 @@ class MqttWrapper {
 
     if (client.connectionStatus!.state == MqttConnectionState.connected) {
       debugPrint('TTN MQTT client connected');
-      // Subscribe to all messages for all devices in the app
+
       client.subscribe('v3/$appId/devices/+/#', MqttQos.atLeastOnce);
-      
+
       client.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final MqttPublishMessage recMess = c[0].payload as MqttPublishMessage;
-        final String pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+        final String pt = MqttPublishPayload.bytesToStringAsString(
+          recMess.payload.message,
+        );
         try {
           Map<String, dynamic> data = json.decode(pt);
           String deviceId = data['end_device_ids']['device_id'] ?? 'unknown';
@@ -81,7 +82,9 @@ class MqttWrapper {
             type = 'Uplink';
             var uplink = data['uplink_message'];
             var decodedPayload = uplink['decoded_payload'];
-            payload = decodedPayload != null ? jsonEncode(decodedPayload) : uplink['payload'] ?? 'no payload';
+            payload = decodedPayload != null
+                ? jsonEncode(decodedPayload)
+                : uplink['payload'] ?? 'no payload';
           } else if (data.containsKey('downlink_queued')) {
             type = 'Downlink Queued';
             payload = data['downlink_queued'].toString();
@@ -89,13 +92,17 @@ class MqttWrapper {
             type = 'Downlink Sent';
             payload = data['downlink_sent'].toString();
           }
-          _messageController.add('$type - Device: $deviceId\nPayload: $payload');
+          _messageController.add(
+            '$type - Device: $deviceId\nPayload: $payload',
+          );
         } catch (e) {
           _messageController.add('Error parsing message: $pt');
         }
       });
     } else {
-      debugPrint('TTN MQTT client connection failed - disconnecting, status is ${client.connectionStatus}');
+      debugPrint(
+        'TTN MQTT client connection failed - disconnecting, status is ${client.connectionStatus}',
+      );
       client.disconnect();
     }
   }

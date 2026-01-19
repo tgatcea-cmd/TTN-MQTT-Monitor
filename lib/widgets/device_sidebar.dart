@@ -22,7 +22,6 @@ class DeviceSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Replaced NavigationDrawer with a standard Container/Column for embedding
     return Container(
       width: 280,
       color: Colors.white,
@@ -40,9 +39,9 @@ class DeviceSidebar extends StatelessWidget {
                 SizedBox(height: 8),
                 Text(
                   '${devices.length} device${devices.length != 1 ? 's' : ''}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.grey),
                 ),
               ],
             ),
@@ -56,13 +55,16 @@ class DeviceSidebar extends StatelessWidget {
                   final isSelected = selectedDevice?.id == device.id;
                   return Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0),
+                      horizontal: 8.0,
+                      vertical: 4.0,
+                    ),
                     child: ListTile(
                       title: Text(
                         device.name,
                         style: TextStyle(
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                           color: isSelected ? Colors.indigo : Colors.black87,
                         ),
                       ),
@@ -73,15 +75,14 @@ class DeviceSidebar extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       selected: isSelected,
-                      tileColor:
-                          isSelected ? Colors.indigo.withValues(alpha: 0.1) : null,
+                      tileColor: isSelected
+                          ? Colors.indigo.withValues(alpha: 0.1)
+                          : null,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                       onTap: () {
                         onDeviceSelected(device);
-                        // REMOVED: Navigator.pop(context); 
-                        // The sidebar is now persistent
                       },
                       trailing: PopupMenuButton(
                         itemBuilder: (context) => [
@@ -95,7 +96,9 @@ class DeviceSidebar extends StatelessWidget {
                             ),
                             onTap: () {
                               Future.delayed(
-                                  Duration.zero, () => onEditDevice(device));
+                                Duration.zero,
+                                () => onEditDevice(device),
+                              );
                             },
                           ),
                           PopupMenuItem(
@@ -103,7 +106,10 @@ class DeviceSidebar extends StatelessWidget {
                               children: [
                                 Icon(Icons.delete, size: 18, color: Colors.red),
                                 SizedBox(width: 12),
-                                Text('Delete', style: TextStyle(color: Colors.red)),
+                                Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ],
                             ),
                             onTap: () =>
@@ -124,7 +130,7 @@ class DeviceSidebar extends StatelessWidget {
             child: Column(
               children: [
                 ElevatedButton.icon(
-                  onPressed: onAddDevice, // Tu función existente
+                  onPressed: onAddDevice,
                   icon: Icon(Icons.add),
                   label: Text('Add Device'),
                   style: ElevatedButton.styleFrom(
@@ -134,16 +140,13 @@ class DeviceSidebar extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 8),
-                // --- NUEVO BOTÓN DE CONFIGURACIÓN ---
+
                 OutlinedButton.icon(
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (context) => DatabaseConfigDialog(
-                        onSaved: () {
-                          // Opcional: Forzar recarga o mostrar aviso de reinicio
-                        },
-                      ),
+                      builder: (context) =>
+                          DatabaseConfigDialog(onSaved: () {}),
                     );
                   },
                   icon: Icon(Icons.settings_applications),

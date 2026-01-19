@@ -13,6 +13,7 @@ import 'widgets/history_view.dart';
 import 'widgets/device_sidebar.dart';
 import 'widgets/device_camera_roll.dart';
 import 'widgets/device_config_dialog.dart';
+import 'widgets/sensor_chart.dart';
 
 class MqttDashboard extends StatefulWidget {
   const MqttDashboard({super.key});
@@ -34,8 +35,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
   bool isMonitoring = false;
   bool isLoadingDevices = true;
   bool _showHistory = false;
-  bool _sortAscending = false; 
+  bool _sortAscending = false;
   bool _isSidebarOpen = true;
+  double? _currentMHO;
 
   List<Device> devices = [];
   Device? selectedDevice;
@@ -73,6 +75,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
     }
 
     if (!mounted) return;
+
+    _refreshMHO();
 
     setState(() {
       devices = devicesWithKeys;
@@ -159,6 +163,16 @@ class _MqttDashboardState extends State<MqttDashboard> {
         backgroundColor: Colors.orange,
       ),
     );
+  }
+
+  void _refreshMHO() async {
+    if (selectedDevice == null) return;
+    final stats = await _databaseService.getDailyStats(selectedDevice!.id);
+    if (mounted) {
+      setState(() {
+        _currentMHO = stats['mho'];
+      });
+    }
   }
 
   void _startMonitoring() async {
@@ -338,7 +352,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                 deviceEui: newDevice.deviceEui,
                 accessKey: newDevice.accessKey!,
                 canControl: newDevice.canControl,
-                batteryMode: newDevice.batteryMode, 
+                batteryMode: newDevice.batteryMode,
               );
             } else {
               await _deviceService.updateDevice(
@@ -349,7 +363,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                 accessKey: newDevice.accessKey,
                 canControl: newDevice.canControl,
                 deviceType: newDevice.deviceType,
-                batteryMode: newDevice.batteryMode, 
+                batteryMode: newDevice.batteryMode,
               );
             }
 
@@ -463,7 +477,8 @@ class _MqttDashboardState extends State<MqttDashboard> {
         offlineThresholdSeconds: _offlineThresholdSeconds,
         selectedProfile: null,
         onSendStopAlarm: sendStopAlarm,
-        batteryMode: device.batteryMode, 
+        batteryMode: device.batteryMode,
+        dailyMHO: _currentMHO,
       ),
     );
   }
@@ -562,7 +577,7 @@ class _MqttDashboardState extends State<MqttDashboard> {
                     ],
                   ),
                 ),
-                
+
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: ElevatedButton.icon(
@@ -618,15 +633,14 @@ class _MqttDashboardState extends State<MqttDashboard> {
                       vertical: 8.0,
                     ),
                     child: Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.end, 
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton.icon(
                           onPressed: () {
                             setState(() {
                               _sortAscending = !_sortAscending;
                             });
-                            _loadHistoricalData(); 
+                            _loadHistoricalData();
                           },
                           icon: Icon(
                             _sortAscending
@@ -645,6 +659,15 @@ class _MqttDashboardState extends State<MqttDashboard> {
                       ],
                     ),
                   ),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: SensorChart(
+                      historicalData: _historicalData,
+                      isAscending: _sortAscending,
+                    ),
+                  ),
+                  SizedBox(height: 10),
 
                   Expanded(
                     child: HistoryView(
@@ -665,8 +688,11 @@ class _MqttDashboardState extends State<MqttDashboard> {
                       selectedDevice: selectedDevice,
                       onDeviceChanged: (device) {
                         setState(() {
+                          deviceReadings[device.id] = null;
+                          _currentMHO = null;
                           selectedDevice = device;
                         });
+                        _refreshMHO();
                       },
                       deviceViewBuilder: _buildDeviceView,
                     ),

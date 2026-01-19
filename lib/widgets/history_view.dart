@@ -7,7 +7,7 @@ class HistoryView extends StatefulWidget {
   final bool isLoading;
   final VoidCallback onLoad;
   final DatabaseService databaseService;
-  final bool isAscending; // <--- NUEVO CAMPO
+  final bool isAscending;
 
   const HistoryView({
     super.key,
@@ -15,7 +15,7 @@ class HistoryView extends StatefulWidget {
     this.isLoading = false,
     required this.onLoad,
     required this.databaseService,
-    this.isAscending = false, // Valor por defecto
+    this.isAscending = false,
   });
 
   @override
@@ -33,12 +33,10 @@ class _HistoryViewState extends State<HistoryView> {
     _setupRealtimeListener();
   }
 
-
-// --- NUEVO: ESTO ARREGLA QUE NO SE ACTUALICE EL ORDEN ---
   @override
   void didUpdateWidget(HistoryView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Si los datos originales cambian (ej. al reordenar), actualizamos la lista local
+
     if (widget.historicalData != oldWidget.historicalData) {
       setState(() {
         _liveData = List.from(widget.historicalData);
@@ -51,27 +49,27 @@ class _HistoryViewState extends State<HistoryView> {
       (newReadings) {
         if (!mounted) return;
         setState(() {
-          final Set<String> existingIds = _liveData.map((e) => '${e['id']}').toSet();
+          final Set<String> existingIds = _liveData
+              .map((e) => '${e['id']}')
+              .toSet();
 
           for (var reading in newReadings) {
             final id = '${reading['id']}';
             if (!existingIds.contains(id)) {
-              // --- NUEVA LÓGICA DE ORDENAMIENTO ---
               if (widget.isAscending) {
-                _liveData.add(reading); // Ascendente: Nuevos al final
+                _liveData.add(reading);
               } else {
-                _liveData.insert(0, reading); // Descendente: Nuevos al principio (Default)
+                _liveData.insert(0, reading);
               }
               existingIds.add(id);
             }
           }
-          
-          // Limpieza opcional (mantener límite)
+
           if (_liveData.length > 100) {
             if (widget.isAscending) {
-               _liveData.removeRange(0, _liveData.length - 100); // Quitar viejos del principio
+              _liveData.removeRange(0, _liveData.length - 100);
             } else {
-               _liveData = _liveData.sublist(0, 100); // Quitar viejos del final
+              _liveData = _liveData.sublist(0, 100);
             }
           }
         });
@@ -139,11 +137,14 @@ class _HistoryViewState extends State<HistoryView> {
         SizedBox(height: 10),
         Text(
           "${_liveData.length} readings (auto-updating)",
-          style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: Colors.green,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         SizedBox(height: 20),
 
-        // Historical Data List with Live Updates
         Expanded(
           child: ListView.builder(
             shrinkWrap: true,

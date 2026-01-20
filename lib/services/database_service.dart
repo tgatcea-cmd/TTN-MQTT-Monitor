@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'models.dart';
+import '../models.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();

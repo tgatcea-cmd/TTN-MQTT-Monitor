@@ -1,23 +1,80 @@
 import 'dart:math';
 
-class TTNProfile {
+// Unified Device Model
+class Device {
+  final String id;
   final String name;
   final String appId;
   final String broker;
-  String? accessKey;
+  final String deviceEui;
+  final String? accessKey;
   final bool canControl;
-  final String? defaultDeviceId;
+  final String deviceType; // 'TTN', 'Dragino', etc.
+  final String batteryMode;
+  final DateTime createdAt;
 
-  TTNProfile({
+  const Device({
+    required this.id,
     required this.name,
     required this.appId,
     required this.broker,
+    required this.deviceEui,
     this.accessKey,
     this.canControl = false,
-    this.defaultDeviceId,
+    this.deviceType = 'TTN',
+    this.batteryMode = 'voltage',
+    required this.createdAt,
   });
+
+  Device copyWith({
+    String? name,
+    String? broker,
+    String? deviceEui,
+    String? accessKey,
+    bool? canControl,
+    String? deviceType,
+    String? batteryMode,
+  }) {
+    return Device(
+      id: id,
+      name: name ?? this.name,
+      appId: appId,
+      broker: broker ?? this.broker,
+      deviceEui: deviceEui ?? this.deviceEui,
+      accessKey: accessKey ?? this.accessKey,
+      canControl: canControl ?? this.canControl,
+      deviceType: deviceType ?? this.deviceType,
+      batteryMode: batteryMode ?? this.batteryMode,
+      createdAt: createdAt,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'appId': appId,
+        'broker': broker,
+        'deviceEui': deviceEui,
+        'deviceType': deviceType,
+        'batteryMode': batteryMode,
+        'canControl': canControl,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory Device.fromJson(Map<String, dynamic> json) => Device(
+        id: json['id'],
+        name: json['name'],
+        appId: json['appId'],
+        broker: json['broker'],
+        deviceEui: json['deviceEui'],
+        deviceType: json['deviceType'] ?? 'TTN',
+        batteryMode: json['batteryMode'] ?? 'voltage',
+        canControl: json['canControl'] ?? false,
+        createdAt: DateTime.parse(json['createdAt']),
+      );
 }
 
+// Unified Sensor Data Model
 class SensorData {
   final double? temperature;
   final double? humidity;
@@ -25,9 +82,7 @@ class SensorData {
   final double? battery;
   final double dewPoint;
   final DateTime timestamp;
-
   final Map<String, dynamic>? customFields;
-  final String? deviceType;
 
   SensorData({
     this.temperature,
@@ -37,33 +92,54 @@ class SensorData {
     required this.dewPoint,
     required this.timestamp,
     this.customFields,
-    this.deviceType,
   });
-}
 
-double calculateDewPoint(double temp, double rh) {
-  const b = 17.62;
-  const c = 243.12;
-  double gamma = (log(rh / 100.0) + ((b * temp) / (c + temp)));
-  return (c * gamma) / (b - gamma);
-}
-
-double? findValue(Map<String, dynamic> payload, String baseKey) {
-  if (payload.containsKey(baseKey)) return payload[baseKey]?.toDouble();
-
-  for (var key in payload.keys) {
-    if (key.startsWith('${baseKey}_')) return payload[key]?.toDouble();
-  }
-
-  if (baseKey == 'humidity') {
-    for (var key in payload.keys) {
-      if (key.startsWith('relative_humidity_')) return payload[key]?.toDouble();
+  factory SensorData.fromPayload(
+      Map<String, dynamic> payload, String deviceType) {
+    double? find(String key) {
+      if (payload.containsKey(key)) return _toDouble(payload[key]);
+      final lowerKey = key.toLowerCase();
+      for (var k in payload.keys) {
+        if (k.toLowerCase().startsWith(lowerKey)) return _toDouble(payload[k]);
+      }
+      return null;
     }
-  }
-  if (baseKey == 'battery') {
-    for (var key in payload.keys) {
-      if (key.startsWith('analog_in_')) return payload[key]?.toDouble();
+
+    double? temp, hum, co2, batt;
+
+    if (deviceType.toLowerCase().contains('dragino')) {
+      temp = find('TempC_SHT') ?? find('TempC1');
+      hum = find('Hum_SHT');
+      batt = find('BatV');
+    } else {
+      temp = find('temperature');
+      hum = find('humidity') ?? find('relative_humidity');
+      co2 = find('co2');
+      batt = find('battery') ?? find('analog_in');
     }
+
+    double dew = 0.0;
+    if (temp != null && hum != null) {
+      const b = 17.62;
+      const c = 243.12;
+      double gamma = (log(hum / 100.0) + ((b * temp) / (c + temp)));
+      dew = (c * gamma) / (b - gamma);
+    }
+
+    return SensorData(
+      temperature: temp,
+      humidity: hum,
+      co2: co2,
+      battery: batt,
+      dewPoint: dew,
+      timestamp: DateTime.now(),
+      customFields: payload,
+    );
   }
-  return null;
+
+  static double? _toDouble(dynamic val) {
+    if (val == null) return null;
+    if (val is num) return val.toDouble();
+    return double.tryParse(val.toString());
+  }
 }

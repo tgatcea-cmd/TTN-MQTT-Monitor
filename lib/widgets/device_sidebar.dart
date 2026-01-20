@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/device.dart';
+import '../models.dart'; // Corrected import
 import 'database_config_dialog.dart';
 
 class DeviceSidebar extends StatelessWidget {
@@ -9,7 +9,7 @@ class DeviceSidebar extends StatelessWidget {
   final VoidCallback onAddDevice;
   final Function(Device) onEditDevice;
   final Function(Device) onDeleteDevice;
-
+  // ... rest of the file stays exactly the same ...
   const DeviceSidebar({
     super.key,
     required this.devices,

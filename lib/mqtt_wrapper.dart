@@ -116,7 +116,7 @@ class MqttWrapper {
     if (client.connectionStatus?.state != MqttConnectionState.connected) return;
     final builder = MqttClientPayloadBuilder();
     builder.addString(message);
-    client.publishMessage(topic, MqttQos.atMostOnce, builder.payload!);
+    client.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
   }
 
   void onConnected() {

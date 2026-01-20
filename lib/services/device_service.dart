@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../models/device.dart';
+import '../models.dart'; // Correct Import
 
 class DeviceService {
   static const String _devicesKey = 'mqtt_devices';
@@ -53,7 +53,6 @@ class DeviceService {
       canControl: canControl,
       batteryMode: batteryMode,
       createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
     );
 
     await _secureStorage.write(key: '$_keyPrefix$appId', value: accessKey);
@@ -82,6 +81,7 @@ class DeviceService {
       throw Exception('Device not found');
     }
 
+    // copyWith handles the non-null logic internally
     Device updated = devices[index].copyWith(
       name: name,
       broker: broker,
@@ -89,7 +89,6 @@ class DeviceService {
       canControl: canControl,
       deviceType: deviceType,
       batteryMode: batteryMode,
-      updatedAt: DateTime.now(),
     );
 
     if (accessKey != null) {
@@ -115,15 +114,6 @@ class DeviceService {
 
   Future<String?> getDeviceApiKey(String appId) async {
     return await _secureStorage.read(key: '$_keyPrefix$appId');
-  }
-
-  Future<void> loadAllApiKeys(List<Device> devices) async {
-    for (var device in devices) {
-      final key = await getDeviceApiKey(device.appId);
-      if (key != null) {
-        device = device.copyWith(accessKey: key);
-      }
-    }
   }
 
   Future<void> _ensurePrefs() async {

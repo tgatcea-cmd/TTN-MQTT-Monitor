@@ -1,19 +1,15 @@
-import 'dart:math';
-import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:mqtt_wrapper/mqtt_wrapper.dart';
-import 'package:mqtt_client/mqtt_client.dart';
-import 'models.dart';
-import 'models/device.dart';
+import 'package:flutter/material.dart';
 import 'services/device_service.dart';
-import 'database_service.dart';
-import 'mqtt_handlers.dart' hide calculateDewPoint;
+import 'services/monitoring_service.dart';
+import 'services/database_service.dart';
+import 'models.dart';
 import 'widgets/metrics_dashboard.dart';
 import 'widgets/history_view.dart';
 import 'widgets/device_sidebar.dart';
 import 'widgets/device_camera_roll.dart';
 import 'widgets/device_config_dialog.dart';
-import 'widgets/sensor_chart.dart';
+import 'widgets/sensor_chart.dart'; // Ensure you have this file or remove the usage below
 
 class MqttDashboard extends StatefulWidget {
   const MqttDashboard({super.key});
@@ -23,512 +19,112 @@ class MqttDashboard extends StatefulWidget {
 }
 
 class _MqttDashboardState extends State<MqttDashboard> {
-  final DatabaseService _databaseService = DatabaseService();
   final DeviceService _deviceService = DeviceService();
+  final MonitoringService _monitor = MonitoringService();
+  final DatabaseService _db = DatabaseService();
 
-  final Map<String, MqttWrapper> _activeClients = {};
-  final List<StreamSubscription> _subscriptions = [];
-
-  late MqttHandlers _mqttHandlers;
-
-  bool isMonitoring = false;
-  bool isLoadingDevices = true;
+  List<Device> _devices = [];
+  Device? _selectedDevice;
+  
+  // UI State
+  bool _isLoading = true;
+  bool _isSidebarOpen = true; // Sidebar starts open
   bool _showHistory = false;
   bool _sortAscending = false;
-  bool _isSidebarOpen = true;
-  double? _currentMHO;
 
-  List<Device> devices = [];
-  Device? selectedDevice;
-  Map<String, SensorData?> deviceReadings = {};
-
-  final Map<String, DateTime> _lastReadingByDevice = {};
-  static const int _offlineThresholdSeconds = 60 * 16;
-
-  String lastLog = "System Ready.";
-
+  // Data Cache for Offline Detection & History
+  final Map<String, DateTime> _lastSeen = {};
   final Map<String, List<Map<String, dynamic>>> _historyCache = {};
-
-  Timer? _offlineTimer;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
-    _initDeviceService();
-    _initMqttHandlers();
-    _offlineTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {});
+    _loadDevices();
+    // Refresh UI every second to update "Offline" timers
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {}); 
     });
-  }
-
-  Future<void> _initDeviceService() async {
-    await _deviceService.init();
-    final loadedDevices = await _deviceService.getAllDevices();
-
-    final devicesWithKeys = <Device>[];
-    for (var device in loadedDevices) {
-      final apiKey = await _deviceService.getDeviceApiKey(device.appId);
-      devicesWithKeys.add(
-        apiKey != null ? device.copyWith(accessKey: apiKey) : device,
-      );
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      devices = devicesWithKeys;
-      isLoadingDevices = false;
-      if (devices.isNotEmpty) {
-        selectedDevice = devices.first;
-        for (var device in devices) {
-          deviceReadings[device.id] = null;
-        }
-      }
-    });
-
-    _refreshMHO();
-  }
-
-  void _initMqttHandlers() {
-    _mqttHandlers = MqttHandlers(
-      databaseService: _databaseService,
-      onMessageReceived: (msg) => debugPrint('Message: $msg'),
-      onSensorDataUpdated: (data, sourceDeviceId) {
-        if (!mounted) return;
-        setState(() {
-          deviceReadings[sourceDeviceId] = data;
-          _lastReadingByDevice[sourceDeviceId] = data.timestamp;
-
-          if (_historyCache.containsKey(sourceDeviceId)) {
-            final newPoint = {
-              'temperature': data.temperature,
-              'humidity': data.humidity,
-              'co2': data.co2,
-              'battery': data.battery,
-              'timestamp': data.timestamp.toIso8601String(),
-              'device_id': sourceDeviceId,
-            };
-
-            final list = _historyCache[sourceDeviceId]!;
-
-            if (_sortAscending) {
-              list.add(newPoint);
-            } else {
-              list.insert(0, newPoint);
-            }
-
-            if (list.length > 150) {
-              if (_sortAscending)
-                list.removeAt(0);
-              else
-                list.removeLast();
-            }
-          }
-        });
-      },
-      onStatusUpdated: (status) {
-        if (!mounted) return;
-        setState(() {
-          lastLog = status;
-        });
-      },
-    );
   }
 
   @override
   void dispose() {
-    _offlineTimer?.cancel();
-    _disconnectAll();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
-  void _stopMonitoring() {
-    _disconnectAll();
+  Future<void> _loadDevices() async {
+    await _deviceService.init();
+    var devices = await _deviceService.getAllDevices();
+
+    List<Device> fullDevices = [];
+    for (var d in devices) {
+      final key = await _deviceService.getDeviceApiKey(d.appId);
+      fullDevices.add(key != null ? d.copyWith(accessKey: key) : d);
+    }
+
     if (mounted) {
       setState(() {
-        isMonitoring = false;
-        lastLog = "Monitoring Stopped";
-      });
-    }
-  }
-
-  void _disconnectAll() {
-    for (var sub in _subscriptions) {
-      sub.cancel();
-    }
-    _subscriptions.clear();
-
-    for (var client in _activeClients.values) {
-      try {
-        client.disconnect();
-      } catch (_) {}
-    }
-    _activeClients.clear();
-  }
-
-  void sendStopAlarm() {
-    if (!isMonitoring ||
-        selectedDevice == null ||
-        !selectedDevice!.canControl) {
-      return;
-    }
-
-    final client = _activeClients[selectedDevice!.appId];
-    if (client == null) {
-      _showErrorSnackBar("Not connected to this device's application.");
-      return;
-    }
-
-    _mqttHandlers.sendStopAlarm(
-      client,
-      selectedDevice!.appId.split('@')[0],
-      selectedDevice!.deviceEui,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🛑 STOP Command Sent!'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
-
-  void _refreshMHO() async {
-    if (selectedDevice == null) return;
-    final stats = await _databaseService.getDailyStats(
-      selectedDevice!.deviceEui,
-    );
-    if (mounted) {
-      setState(() {
-        _currentMHO = stats['mho'];
-      });
-    }
-  }
-
-  void _startMonitoring() async {
-    int successCount = 0;
-    setState(() => lastLog = "Initializing connections...");
-
-    for (var device in devices) {
-      if (device.accessKey == null || device.accessKey!.isEmpty) {
-        debugPrint("Skipping ${device.name} - No API Key");
-        continue;
-      }
-
-      if (_activeClients.containsKey(device.appId)) continue;
-
-      final isTTN =
-          device.broker.contains('thethings') || device.broker.contains('ttn');
-
-      final mqtt = MqttWrapper(
-        appId: device.appId,
-        accessKey: device.accessKey!,
-        broker: device.broker,
-        port: isTTN ? 8883 : 1883,
-        secure: isTTN,
-      );
-
-      final subscription = mqtt.messages.listen((message) {
-        _mqttHandlers.handleMessage(
-          message,
-          device.deviceEui,
-          device.id,
-          device.deviceType,
-        );
-      });
-      _subscriptions.add(subscription);
-
-      try {
-        await mqtt.connect();
-        if (mqtt.client.connectionStatus?.state ==
-            MqttConnectionState.connected) {
-          final String cleanAppId = device.appId.split('@')[0];
-          mqtt.client.subscribe(
-            "v3/$cleanAppId/devices/+/up",
-            MqttQos.atMostOnce,
-          );
-
-          _activeClients[device.appId] = mqtt;
-          successCount++;
+        _devices = fullDevices;
+        if (_devices.isNotEmpty && _selectedDevice == null) {
+          _selectedDevice = _devices.first;
         }
-      } catch (e) {
-        debugPrint("Failed to connect to ${device.name}: $e");
-      }
-    }
-
-    if (successCount > 0) {
-      setState(() {
-        isMonitoring = true;
-        lastLog =
-            "✅ Monitoring $successCount Device${successCount != 1 ? 's' : ''}";
+        _isLoading = false;
       });
-    } else {
-      _showErrorSnackBar("Could not connect to any devices. Check API Keys.");
-      setState(() => lastLog = "Connection Failed");
+      // Pre-load history for the first device
+      if (_selectedDevice != null) _loadHistory(_selectedDevice!.id);
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
-  }
-
-  void _loadDeviceHistory(String deviceId) async {
-    final device = devices.firstWhere(
-      (d) => d.id == deviceId,
-      orElse: () => devices.first,
-    );
-
-    if (_historyCache.containsKey(deviceId) &&
-        _historyCache[deviceId]!.isNotEmpty) {
-      return;
-    }
-
+  Future<void> _loadHistory(String deviceId) async {
+    final device = _devices.firstWhere((d) => d.id == deviceId, orElse: () => _devices.first);
     try {
-      final data = await _databaseService.getSensorReadings(
+      final data = await _db.getSensorReadings(
         deviceId: device.deviceEui,
         limit: 100,
       );
-
       if (mounted) {
         setState(() {
           _historyCache[deviceId] = data;
         });
       }
     } catch (e) {
-      debugPrint("Error loading history for ${device.deviceEui}: $e");
+      debugPrint("History Load Error: $e");
     }
   }
 
-  void _showHistoryView() {
-    if (selectedDevice != null) {
-      _loadDeviceHistory(selectedDevice!.id);
+  bool _isOffline(String deviceId) {
+    if (!_lastSeen.containsKey(deviceId)) return true;
+    final last = _lastSeen[deviceId]!;
+    // 15 minutes threshold
+    return DateTime.now().difference(last).inMinutes > 15; 
+  }
+
+  void _handleMonitoringToggle() {
+    if (_monitor.isMonitoring.value) {
+      _monitor.stopMonitoring();
+    } else {
+      _monitor.startMonitoring(_devices);
     }
-    setState(() => _showHistory = true);
-  }
-
-  void _hideHistoryView() {
-    _databaseService.unsubscribeFromReadings();
-    setState(() => _showHistory = false);
-  }
-
-  Future<void> _insertTestData() async {
-    final String testId = 'euid-test_device';
-    final String testName = 'Test Device (Simulated)';
-
-    final random = Random();
-    final temp = 20.0 + random.nextDouble() * 10.0;
-    final hum = 40.0 + random.nextDouble() * 20.0;
-    final dew = calculateDewPoint(temp, hum);
-
-    final sensorData = SensorData(
-      temperature: temp,
-      humidity: hum,
-      co2: 450,
-      battery: 3.2,
-      dewPoint: dew,
-      timestamp: DateTime.now(),
-      deviceType: 'TTN',
-    );
-
-    if (!devices.any((d) => d.id == testId)) {
-      final testDevice = Device(
-        id: testId,
-        name: testName,
-        appId: 'test-app',
-        broker: 'test.broker',
-        deviceEui: testId,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      setState(() {
-        devices = [...devices, testDevice];
-        deviceReadings[testId] = null;
-        selectedDevice ??= testDevice;
-      });
-    }
-
-    setState(() {
-      deviceReadings[testId] = sensorData;
-      _lastReadingByDevice[testId] = sensorData.timestamp;
-      selectedDevice = devices.firstWhere((d) => d.id == testId);
-    });
-
-    try {
-      await _databaseService.insertTestSensorReading(sensorData);
-
-      _loadDeviceHistory(testId);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Test reading added: ${temp.toStringAsFixed(1)}°C'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 1),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error saving to DB: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _addOrEditDevice(Device? device) async {
-    final wasMonitoring = isMonitoring;
-
-    await showDialog(
-      context: context,
-      builder: (dialogBuildContext) => DeviceConfigDialog(
-        device: device,
-        onSave: (newDevice) async {
-          try {
-            if (device == null) {
-              await _deviceService.addDevice(
-                name: newDevice.name,
-                appId: newDevice.appId,
-                broker: newDevice.broker,
-                deviceEui: newDevice.deviceEui,
-                accessKey: newDevice.accessKey!,
-                canControl: newDevice.canControl,
-                batteryMode: newDevice.batteryMode,
-              );
-            } else {
-              await _deviceService.updateDevice(
-                id: device.id,
-                name: newDevice.name,
-                broker: newDevice.broker,
-                deviceEui: newDevice.deviceEui,
-                accessKey: newDevice.accessKey,
-                canControl: newDevice.canControl,
-                deviceType: newDevice.deviceType,
-                batteryMode: newDevice.batteryMode,
-              );
-            }
-
-            await _initDeviceService();
-
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  device == null ? 'Device added' : 'Device updated',
-                ),
-                backgroundColor: Colors.green,
-              ),
-            );
-
-            if (wasMonitoring && mounted) {
-              _stopMonitoring();
-              await Future.delayed(Duration(milliseconds: 500));
-              if (mounted) _startMonitoring();
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('Error: $e')));
-            }
-          }
-        },
-      ),
-    );
-  }
-
-  Future<void> _deleteDevice(Device device) async {
-    try {
-      await _deviceService.deleteDevice(device.id);
-
-      final loadedDevices = await _deviceService.getAllDevices();
-      final devicesWithKeys = <Device>[];
-      for (var d in loadedDevices) {
-        final apiKey = await _deviceService.getDeviceApiKey(d.appId);
-        devicesWithKeys.add(apiKey != null ? d.copyWith(accessKey: apiKey) : d);
-      }
-
-      setState(() {
-        devices = devicesWithKeys;
-        if (selectedDevice?.id == device.id) {
-          selectedDevice = devices.isNotEmpty ? devices.first : null;
-        }
-        deviceReadings.remove(device.id);
-        _historyCache.remove(device.id);
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Device removed'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
-    }
-
-    _historyCache.remove(device.id);
-  }
-
-  bool _isDeviceOffline(String deviceId) {
-    final timestamp = _lastReadingByDevice[deviceId];
-    if (timestamp == null) return true;
-    return timestamp
-        .add(Duration(seconds: _offlineThresholdSeconds))
-        .isBefore(DateTime.now());
-  }
-
-  Widget _buildDeviceView(Device device) {
-    final currentReading = deviceReadings[device.id];
-    final offline = _isDeviceOffline(device.id);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: MetricsDashboard(
-        currentReading: currentReading,
-        offline: offline,
-        isMonitoring: isMonitoring,
-        offlineThresholdSeconds: _offlineThresholdSeconds,
-        selectedProfile: null,
-        onSendStopAlarm: sendStopAlarm,
-        batteryMode: device.batteryMode,
-        dailyMHO: _currentMHO,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoadingDevices) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Safe-Art Monitor'),
-        elevation: 0,
+        title: const Text('Safe-Art Monitor'),
         leading: IconButton(
           icon: Icon(_isSidebarOpen ? Icons.menu_open : Icons.menu),
-          onPressed: () {
-            setState(() {
-              _isSidebarOpen = !_isSidebarOpen;
-            });
-          },
+          onPressed: () => setState(() => _isSidebarOpen = !_isSidebarOpen),
         ),
       ),
       body: Row(
         children: [
+          // 1. Collapsible Sidebar
           AnimatedContainer(
-            duration: Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 200),
             width: _isSidebarOpen ? 280 : 0,
             child: ClipRect(
               child: OverflowBox(
@@ -536,71 +132,77 @@ class _MqttDashboardState extends State<MqttDashboard> {
                 minWidth: 280,
                 alignment: Alignment.topLeft,
                 child: DeviceSidebar(
-                  devices: devices,
-                  selectedDevice: selectedDevice,
-                  onDeviceSelected: (device) {
+                  devices: _devices,
+                  selectedDevice: _selectedDevice,
+                  onDeviceSelected: (d) {
                     setState(() {
-                      selectedDevice = device;
-                      if (_showHistory)
-                        _loadDeviceHistory(device.id);
-                      else {
-                        deviceReadings[device.id] = null;
-                        _currentMHO = null;
-                        _refreshMHO();
-                      }
+                      _selectedDevice = d;
+                      // Reload history when switching devices
+                      _loadHistory(d.id);
                     });
                   },
-                  onAddDevice: () => _addOrEditDevice(null),
-                  onEditDevice: _addOrEditDevice,
+                  onAddDevice: () => _editDevice(null),
+                  onEditDevice: _editDevice,
                   onDeleteDevice: _deleteDevice,
                 ),
               ),
             ),
           ),
 
+          // 2. Main Content Area
           Expanded(
             child: Column(
               children: [
+                // Top Control Bar
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: isMonitoring
-                              ? _stopMonitoring
-                              : _startMonitoring,
-                          icon: Icon(
-                            isMonitoring ? Icons.stop : Icons.play_arrow,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ValueListenableBuilder<bool>(
+                              valueListenable: _monitor.isMonitoring,
+                              builder: (ctx, isRunning, _) {
+                                return ElevatedButton.icon(
+                                  onPressed: _handleMonitoringToggle,
+                                  icon: Icon(isRunning ? Icons.stop : Icons.play_arrow),
+                                  label: Text(isRunning ? 'Stop Monitoring' : 'Start Monitoring'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isRunning ? Colors.redAccent : Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                          label: Text(
-                            isMonitoring
-                                ? 'Stop Monitoring'
-                                : 'Start Monitoring',
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => setState(() => _showHistory = !_showHistory),
+                              icon: Icon(_showHistory ? Icons.dashboard : Icons.history),
+                              label: Text(_showHistory ? 'Back to Live' : 'View History'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.indigo,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isMonitoring
-                                ? Colors.red
-                                : Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
+                        ],
                       ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showHistory
-                              ? _hideHistoryView()
-                              : _showHistoryView(),
-                          icon: Icon(
-                            _showHistory ? Icons.dashboard : Icons.history,
-                          ),
-                          label: Text(_showHistory ? 'Live View' : 'History'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.indigo,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: 12),
+                      const SizedBox(height: 8),
+                      // Status Log Line
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        color: Colors.grey[200],
+                        child: ValueListenableBuilder<String>(
+                          valueListenable: _monitor.statusLog,
+                          builder: (_, log, _) => Text(
+                            "Status: $log",
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -608,142 +210,108 @@ class _MqttDashboardState extends State<MqttDashboard> {
                   ),
                 ),
 
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: ElevatedButton.icon(
-                    onPressed: _insertTestData,
-                    icon: Icon(Icons.bug_report),
-                    label: Text('Add Test Reading'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                      minimumSize: Size(double.infinity, 40),
-                    ),
-                  ),
+                // Main Views
+                Expanded(
+                  child: _devices.isEmpty
+                      ? const Center(child: Text("Add a device to begin"))
+                      : _buildMainView(),
                 ),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isMonitoring
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: isMonitoring ? Colors.green : Colors.grey,
-                          size: 20,
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            lastLog,
-                            style: TextStyle(
-                              color: isMonitoring ? Colors.green : Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 16),
-
-                if (devices.isEmpty)
-                  const Expanded(
-                    child: Center(child: Text("Add a device to begin")),
-                  )
-                else if (_showHistory) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 8.0,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            setState(() => _sortAscending = !_sortAscending);
-                            if (selectedDevice != null)
-                              _historyCache.remove(selectedDevice!.id);
-                            _loadDeviceHistory(selectedDevice!.id);
-                          },
-                          icon: Icon(
-                            _sortAscending
-                                ? Icons.arrow_upward
-                                : Icons.arrow_downward,
-                          ),
-                          label: Text(
-                            _sortAscending ? "Oldest First" : "Newest First",
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Expanded(
-                    flex: 5,
-                    child: DeviceCameraRoll(
-                      devices: devices,
-                      selectedDevice: selectedDevice,
-                      onDeviceChanged: (device) {
-                        setState(() => selectedDevice = device);
-                        _loadDeviceHistory(device.id);
-                      },
-                      deviceViewBuilder: (device) {
-                        return Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: SensorChart(
-                            historicalData: _historyCache[device.id] ?? [],
-                            isAscending: _sortAscending,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  Expanded(
-                    flex: 4,
-                    child: HistoryView(
-                      databaseService: _databaseService,
-                      historicalData: _historyCache[selectedDevice?.id] ?? [],
-                      onLoad: () {
-                        if (selectedDevice != null)
-                          _loadDeviceHistory(selectedDevice!.id);
-                      },
-                      isAscending: _sortAscending,
-
-                      deviceId: selectedDevice?.id,
-                    ),
-                  ),
-                ] else ...[
-                  Expanded(
-                    child: DeviceCameraRoll(
-                      devices: devices,
-                      selectedDevice: selectedDevice,
-                      onDeviceChanged: (device) {
-                        setState(() {
-                          selectedDevice = device;
-                        });
-                        _refreshMHO();
-                      },
-                      deviceViewBuilder: _buildDeviceView,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildMainView() {
+    // 3. History View
+    if (_showHistory) {
+      return Column(
+        children: [
+          // Optional Chart at top of history
+          SizedBox(
+            height: 200,
+            child: SensorChart(
+              historicalData: _historyCache[_selectedDevice?.id] ?? [],
+              isAscending: _sortAscending,
+            ),
+          ),
+          Expanded(
+            child: HistoryView(
+              historicalData: _historyCache[_selectedDevice?.id] ?? [],
+              isLoading: false,
+              onLoad: () => _selectedDevice != null ? _loadHistory(_selectedDevice!.id) : null,
+              databaseService: _db,
+              isAscending: _sortAscending,
+              deviceId: _selectedDevice?.id,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // 4. Live Camera Roll View
+    return DeviceCameraRoll(
+      devices: _devices,
+      selectedDevice: _selectedDevice,
+      onDeviceChanged: (d) => setState(() => _selectedDevice = d),
+      deviceViewBuilder: (device) {
+        return StreamBuilder<SensorData>(
+          stream: _monitor.getStream(device.id),
+          builder: (context, snapshot) {
+            
+            // Update "Last Seen" for offline logic
+            if (snapshot.hasData && snapshot.data != null) {
+              _lastSeen[device.id] = snapshot.data!.timestamp;
+            }
+
+            // If we have no stream data, check if we have it in history to show *something*
+            // Otherwise, it's just "Waiting for data..."
+            
+            return MetricsDashboard(
+              currentReading: snapshot.data,
+              offline: _isOffline(device.id),
+              isMonitoring: _monitor.isMonitoring.value,
+              offlineThresholdSeconds: 900, // 15 mins
+              onSendStopAlarm: () => _monitor.sendStopCommand(device),
+              batteryMode: device.batteryMode,
+              // We can pass null for dailyMHO or calculate it if needed
+              dailyMHO: null, 
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _editDevice(Device? d) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => DeviceConfigDialog(
+        device: d,
+        onSave: (newDev) async {
+          if (d == null) {
+            await _deviceService.addDevice(
+              name: newDev.name, appId: newDev.appId, broker: newDev.broker,
+              deviceEui: newDev.deviceEui, accessKey: newDev.accessKey ?? '',
+              canControl: newDev.canControl, batteryMode: newDev.batteryMode
+            );
+          } else {
+            await _deviceService.updateDevice(
+              id: d.id, name: newDev.name, broker: newDev.broker,
+              deviceEui: newDev.deviceEui, accessKey: newDev.accessKey,
+              canControl: newDev.canControl, batteryMode: newDev.batteryMode
+            );
+          }
+          _loadDevices();
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteDevice(Device d) async {
+    await _deviceService.deleteDevice(d.id);
+    _loadDevices();
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../database_service.dart';
+import '../services/database_service.dart';
 
 class HistoryView extends StatefulWidget {
   final List<Map<String, dynamic>> historicalData;

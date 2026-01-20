@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/device.dart';
+import '../models.dart';
 
 class DeviceConfigDialog extends StatefulWidget {
   final Device? device;
@@ -53,10 +53,9 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
   void _save() {
     if (_nameController.text.isEmpty ||
         _appIdController.text.isEmpty ||
-        _deviceEuiController.text.isEmpty ||
-        _apiKeyController.text.isEmpty) {
+        _deviceEuiController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('All fields are required'),
           backgroundColor: Colors.red,
         ),
@@ -75,7 +74,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       deviceType: _deviceType,
       batteryMode: _batteryMode,
       createdAt: widget.device?.createdAt ?? DateTime.now(),
-      updatedAt: DateTime.now(),
+      // REMOVED: updatedAt: DateTime.now(),
     );
 
     widget.onSave(device);
@@ -92,39 +91,39 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
           children: [
             TextField(
               controller: _nameController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Device Name',
                 hintText: 'e.g., Gallery Monitor 1',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             TextField(
               controller: _appIdController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'TTN App ID',
                 hintText: 'e.g., app@ttn',
                 border: OutlineInputBorder(),
               ),
               readOnly: widget.device != null,
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             TextField(
               controller: _brokerController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'MQTT Broker',
                 hintText: 'e.g., eu1.cloud.thethings.network',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _deviceType,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Device Type',
                 border: OutlineInputBorder(),
               ),
-              items: [
+              items: const [
                 DropdownMenuItem(
                   value: 'TTN',
                   child: Text('TTN / Standard LoRaWAN'),
@@ -142,15 +141,16 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                 }
               },
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _batteryMode,
-              decoration: InputDecoration(
+              // CHANGED: 'value' to 'initialValue' to fix deprecation warning
+              initialValue: _batteryMode, 
+              decoration: const InputDecoration(
                 labelText: 'Battery Display Mode',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.battery_std),
               ),
-              items: [
+              items: const [
                 DropdownMenuItem(value: 'voltage', child: Text('Voltage (V)')),
                 DropdownMenuItem(
                   value: 'percentage',
@@ -161,19 +161,19 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                 if (value != null) setState(() => _batteryMode = value);
               },
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             TextField(
               controller: _deviceEuiController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Device EUI',
                 hintText: 'Format: eui-xxxxxxxxxxxxxxxx',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             TextField(
               controller: _apiKeyController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'API Key',
                 hintText: 'NNSXS...',
                 border: OutlineInputBorder(),
@@ -181,9 +181,9 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
               ),
               obscureText: true,
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             CheckboxListTile(
-              title: Text('Can Control (Send Downlink Commands)'),
+              title: const Text('Can Control (Send Downlink Commands)'),
               value: _canControl,
               onChanged: (value) {
                 setState(() {
@@ -197,7 +197,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancel'),
+          child: const Text('Cancel'),
         ),
         ElevatedButton(
           onPressed: _save,

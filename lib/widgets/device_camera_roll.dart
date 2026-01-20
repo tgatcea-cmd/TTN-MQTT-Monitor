@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../models/device.dart';
+import '../models.dart';
 
 class DeviceCameraRoll extends StatefulWidget {
   final List<Device> devices;
@@ -50,31 +50,14 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
         _currentIndex = newIndex;
         _pageController.animateToPage(
           newIndex,
-          duration: Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
       }
     }
   }
 
-  void _setInitialPage() {
-    if (widget.selectedDevice == null || widget.devices.isEmpty) {
-      _currentIndex = 0;
-    } else {
-      _currentIndex = widget.devices.indexWhere(
-        (d) => d.id == widget.selectedDevice!.id,
-      );
-      if (_currentIndex == -1) _currentIndex = 0;
-
-      if (mounted && _pageController.hasClients) {
-        _pageController.animateToPage(
-          _currentIndex,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    }
-  }
+  // REMOVED: Unused _setInitialPage method
 
   void _handleScroll(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
@@ -84,7 +67,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
       if (event.scrollDelta.dy > 0) {
         if (_currentIndex < widget.devices.length - 1) {
           _pageController.nextPage(
-            duration: Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
           _lastScrollTime = now;
@@ -92,7 +75,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
       } else if (event.scrollDelta.dy < 0) {
         if (_currentIndex > 0) {
           _pageController.previousPage(
-            duration: Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
           _lastScrollTime = now;
@@ -110,7 +93,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
   @override
   Widget build(BuildContext context) {
     if (widget.devices.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -147,7 +130,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
           child: Column(
             children: [
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.indigo.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -166,10 +149,10 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
                             widget.devices[_currentIndex].deviceEui,
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -177,7 +160,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                       ),
                     ),
                     Container(
-                      padding: EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 6,
                       ),
@@ -187,7 +170,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                       ),
                       child: Text(
                         '${_currentIndex + 1}/${widget.devices.length}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
@@ -198,7 +181,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                 ),
               ),
 
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -208,12 +191,12 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                     onTap: () {
                       _pageController.animateToPage(
                         index,
-                        duration: Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
                       );
                     },
                     child: Container(
-                      margin: EdgeInsets.symmetric(horizontal: 4),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
                       width: _currentIndex == index ? 12 : 8,
                       height: _currentIndex == index ? 12 : 8,
                       decoration: BoxDecoration(

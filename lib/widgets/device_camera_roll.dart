@@ -57,25 +57,6 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
     }
   }
 
-  void _setInitialPage() {
-    if (widget.selectedDevice == null || widget.devices.isEmpty) {
-      _currentIndex = 0;
-    } else {
-      _currentIndex = widget.devices.indexWhere(
-        (d) => d.id == widget.selectedDevice!.id,
-      );
-      if (_currentIndex == -1) _currentIndex = 0;
-
-      if (mounted && _pageController.hasClients) {
-        _pageController.animateToPage(
-          _currentIndex,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    }
-  }
-
   void _handleScroll(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       final now = DateTime.now();

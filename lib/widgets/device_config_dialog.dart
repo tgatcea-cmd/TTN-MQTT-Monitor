@@ -144,7 +144,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
             ),
             SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _batteryMode,
+              initialValue: _batteryMode,
               decoration: InputDecoration(
                 labelText: 'Battery Display Mode',
                 border: OutlineInputBorder(),

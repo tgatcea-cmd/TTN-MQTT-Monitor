@@ -119,10 +119,11 @@ class _MqttDashboardState extends State<MqttDashboard> {
             }
 
             if (list.length > 150) {
-              if (_sortAscending)
+              if (_sortAscending) {
                 list.removeAt(0);
-              else
+              } else {
                 list.removeLast();
+              }
             }
           }
         });
@@ -541,9 +542,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
                   onDeviceSelected: (device) {
                     setState(() {
                       selectedDevice = device;
-                      if (_showHistory)
+                      if (_showHistory) {
                         _loadDeviceHistory(device.id);
-                      else {
+                      } else {
                         deviceReadings[device.id] = null;
                         _currentMHO = null;
                         _refreshMHO();
@@ -672,8 +673,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
                         OutlinedButton.icon(
                           onPressed: () {
                             setState(() => _sortAscending = !_sortAscending);
-                            if (selectedDevice != null)
+                            if (selectedDevice != null) {
                               _historyCache.remove(selectedDevice!.id);
+                            }
                             _loadDeviceHistory(selectedDevice!.id);
                           },
                           icon: Icon(
@@ -716,8 +718,9 @@ class _MqttDashboardState extends State<MqttDashboard> {
                       databaseService: _databaseService,
                       historicalData: _historyCache[selectedDevice?.id] ?? [],
                       onLoad: () {
-                        if (selectedDevice != null)
+                        if (selectedDevice != null) {
                           _loadDeviceHistory(selectedDevice!.id);
+                        }
                       },
                       isAscending: _sortAscending,
 

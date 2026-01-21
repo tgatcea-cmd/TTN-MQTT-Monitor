@@ -31,8 +31,8 @@ class SensorChart extends StatelessWidget {
     }
 
     List<FlSpot> tempSpots = [];
-    double minY = 999;
-    double maxY = -999;
+    double minY = 0;
+    double maxY = 50;
 
     for (int i = 0; i < sortedData.length; i++) {
       final reading = sortedData[i];

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services.dart';
+import '../../../services.dart';
 
 class DatabaseConfigDialog extends StatefulWidget {
   final VoidCallback onSaved;

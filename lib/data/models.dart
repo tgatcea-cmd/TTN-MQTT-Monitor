@@ -1,6 +1,5 @@
 import 'dart:math';
 
-// Unified Device Model
 class Device {
   final String id;
   final String name;
@@ -9,8 +8,12 @@ class Device {
   final String deviceEui;
   final String? accessKey;
   final bool canControl;
-  final String deviceType; // 'TTN', 'Dragino', etc.
+  final String deviceType;
   final String batteryMode;
+  
+  final int controlPort;
+  final String controlPayload;
+
   final DateTime createdAt;
 
   const Device({
@@ -23,6 +26,10 @@ class Device {
     this.canControl = false,
     this.deviceType = 'TTN',
     this.batteryMode = 'voltage',
+
+    this.controlPort = 1,
+    this.controlPayload = '01',
+
     required this.createdAt,
   });
 
@@ -34,6 +41,8 @@ class Device {
     bool? canControl,
     String? deviceType,
     String? batteryMode,
+    int? controlPort,
+    String? controlPayload,
   }) {
     return Device(
       id: id,
@@ -45,6 +54,10 @@ class Device {
       canControl: canControl ?? this.canControl,
       deviceType: deviceType ?? this.deviceType,
       batteryMode: batteryMode ?? this.batteryMode,
+      
+      controlPort: controlPort ?? this.controlPort,
+      controlPayload: controlPayload ?? this.controlPayload,
+      
       createdAt: createdAt,
     );
   }
@@ -58,6 +71,10 @@ class Device {
         'deviceType': deviceType,
         'batteryMode': batteryMode,
         'canControl': canControl,
+
+        'controlPort': controlPort,
+        'controlPayload': controlPayload,
+
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -70,6 +87,10 @@ class Device {
         deviceType: json['deviceType'] ?? 'TTN',
         batteryMode: json['batteryMode'] ?? 'voltage',
         canControl: json['canControl'] ?? false,
+
+        controlPort: json['controlPort'] ?? 1,
+        controlPayload: json['controlPayload'] ?? '01',
+
         createdAt: DateTime.parse(json['createdAt']),
       );
 }

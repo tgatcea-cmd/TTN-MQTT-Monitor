@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../models.dart';
+import '../../data/models.dart';
 
 class DeviceCameraRoll extends StatefulWidget {
   final List<Device> devices;

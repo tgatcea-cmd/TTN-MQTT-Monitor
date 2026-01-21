@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models.dart';
+import '../../../data/models.dart';
 
 class DeviceConfigDialog extends StatefulWidget {
   final Device? device;
@@ -20,6 +20,9 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
   late bool _canControl;
   late String _deviceType;
   late String _batteryMode;
+  late TextEditingController _controlPortController;
+  late TextEditingController _controlPayloadController;
+
 
   @override
   void initState() {
@@ -38,6 +41,12 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
     _canControl = widget.device?.canControl ?? false;
     _deviceType = widget.device?.deviceType ?? 'TTN';
     _batteryMode = widget.device?.batteryMode ?? 'voltage';
+    _controlPortController = TextEditingController(
+      text: widget.device?.controlPort.toString() ?? '1',
+    );
+    _controlPayloadController = TextEditingController(
+      text: widget.device?.controlPayload ?? '01',
+    );
   }
 
   @override
@@ -47,6 +56,8 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
     _brokerController.dispose();
     _deviceEuiController.dispose();
     _apiKeyController.dispose();
+    _controlPortController.dispose();
+    _controlPayloadController.dispose();
     super.dispose();
   }
 
@@ -73,8 +84,11 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       canControl: _canControl,
       deviceType: _deviceType,
       batteryMode: _batteryMode,
+
+      controlPort: int.tryParse(_controlPortController.text) ?? 1,
+      controlPayload: _controlPayloadController.text.trim(),
+
       createdAt: widget.device?.createdAt ?? DateTime.now(),
-      // REMOVED: updatedAt: DateTime.now(),
     );
 
     widget.onSave(device);
@@ -143,7 +157,6 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              // CHANGED: 'value' to 'initialValue' to fix deprecation warning
               initialValue: _batteryMode, 
               decoration: const InputDecoration(
                 labelText: 'Battery Display Mode',
@@ -191,6 +204,57 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                 });
               },
             ),
+
+            if (_canControl) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.05),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Alarm Stop Command",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: TextField(
+                            controller: _controlPortController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Port',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _controlPayloadController,
+                            decoration: const InputDecoration(
+                              labelText: 'Hex Payload (e.g. A0)',
+                              hintText: '01',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),  
+              ),
+            ],
           ],
         ),
       ),

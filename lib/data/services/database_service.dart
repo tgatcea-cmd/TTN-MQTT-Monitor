@@ -44,6 +44,7 @@ class DatabaseService {
     try {
       final List<dynamic> response = await _client
           .from('sensor_readings')
+          
           .select()
           .order('timestamp', ascending: ascending)
           .limit(limit);

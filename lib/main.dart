@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'dashboard.dart';
+import 'ui/screens/dashboard_screen.dart'; 
+import 'ui/widgets/dialogs/database_config_dialog.dart';
 import 'services.dart';
-import 'widgets/database_config_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,7 +58,7 @@ class MainApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.grey[100],
       ),
 
-      home: isConfigured ? const MqttDashboard() : const SetupScreen(),
+      home: isConfigured ? const DashboardScreen() : const SetupScreen(),
     );
   }
 }

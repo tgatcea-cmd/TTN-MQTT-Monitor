@@ -70,34 +70,11 @@ class MqttWrapper {
 
       client.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final MqttPublishMessage recMess = c[0].payload as MqttPublishMessage;
-        final String pt = MqttPublishPayload.bytesToStringAsString(
-          recMess.payload.message,
-        );
-        try {
-          Map<String, dynamic> data = json.decode(pt);
-          String deviceId = data['end_device_ids']['device_id'] ?? 'unknown';
-          String type = 'Unknown';
-          String payload = 'No payload';
-          if (data.containsKey('uplink_message')) {
-            type = 'Uplink';
-            var uplink = data['uplink_message'];
-            var decodedPayload = uplink['decoded_payload'];
-            payload = decodedPayload != null
-                ? jsonEncode(decodedPayload)
-                : uplink['payload'] ?? 'no payload';
-          } else if (data.containsKey('downlink_queued')) {
-            type = 'Downlink Queued';
-            payload = data['downlink_queued'].toString();
-          } else if (data.containsKey('downlink_sent')) {
-            type = 'Downlink Sent';
-            payload = data['downlink_sent'].toString();
-          }
-          _messageController.add(
-            '$type - Device: $deviceId\nPayload: $payload',
-          );
-        } catch (e) {
-          _messageController.add('Error parsing message: $pt');
-        }
+        final String pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message,);
+
+        debugPrint("🔍 [MqttWrapper] RAW MSG: $pt");
+
+        _messageController.add(pt);
       });
     } else {
       debugPrint(

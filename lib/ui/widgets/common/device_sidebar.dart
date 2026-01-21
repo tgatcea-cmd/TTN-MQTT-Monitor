@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models.dart'; // Corrected import
-import 'database_config_dialog.dart';
+import '../../../data/models.dart'; // Corrected import
+import '../dialogs/database_config_dialog.dart';
 
 class DeviceSidebar extends StatelessWidget {
   final List<Device> devices;

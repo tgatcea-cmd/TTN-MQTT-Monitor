@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models.dart';
+import '../../../data/models.dart';
 
 class MetricsDashboard extends StatelessWidget {
   final SensorData? currentReading;

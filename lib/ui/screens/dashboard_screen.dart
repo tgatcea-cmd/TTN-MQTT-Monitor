@@ -112,8 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: ValueListenableBuilder<List<Device>>(
             valueListenable: _controller.devices,
             builder: (ctx, devices, _) {
-              if (devices.isEmpty)
-                return const Center(child: Text("Add a device to begin"));
+              if (devices.isEmpty) { return const Center(child: Text("Add a device to begin")); }
 
               // Ensure we have a selection
               final currentDevice = _selectedDevice ?? devices.first;

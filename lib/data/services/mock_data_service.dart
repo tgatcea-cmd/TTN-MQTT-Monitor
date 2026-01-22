@@ -70,8 +70,8 @@ class MockDataService implements SensorRepository {
 
   @override
   Future<void> sendCommand(Device device) async {
-    print("MOCK: Sending command to ${device.name}...");
+    debugPrint("MOCK: Sending command to ${device.name}...");
     await Future.delayed(const Duration(milliseconds: 500));
-    print("MOCK: Command delivered!");
+    debugPrint("MOCK: Command delivered!");
   }
 }

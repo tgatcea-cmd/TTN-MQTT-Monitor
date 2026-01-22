@@ -6,8 +6,6 @@ import '../sensor_repository.dart';
 import 'mock_data_service.dart';
 import 'real_sensor_service.dart';
 import 'device_service.dart';
-import 'monitoring_service.dart';
-import 'database_service.dart';
 
 class AppController {
   

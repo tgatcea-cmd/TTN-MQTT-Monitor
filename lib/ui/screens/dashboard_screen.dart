@@ -47,6 +47,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return DateTime.now().difference(data.timestamp).inMinutes > 15;
   }
 
+  bool _checkDeviceStatus(Device d) {
+    final data = _controller.getLastKnownData(d.id);
+    return _isOffline(data);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,6 +86,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           selectedDevice:
                               _selectedDevice ??
                               (devices.isNotEmpty ? devices.first : null),
+                          // NEW: Pass the status checker to the sidebar
+                          isDeviceOffline: _checkDeviceStatus,
                           onDeviceSelected: (d) {
                             setState(() => _selectedDevice = d);
                             _controller.loadHistoryFor(d);
@@ -112,7 +119,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: ValueListenableBuilder<List<Device>>(
             valueListenable: _controller.devices,
             builder: (ctx, devices, _) {
-              if (devices.isEmpty) { return const Center(child: Text("Add a device to begin")); }
+              if (devices.isEmpty) {
+                return const Center(child: Text("Add a device to begin"));
+              }
 
               // Ensure we have a selection
               final currentDevice = _selectedDevice ?? devices.first;
@@ -201,7 +210,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               offline: _isOffline(data),
               isMonitoring: _controller.isMonitoring.value,
               offlineThresholdSeconds: 900,
-              onSendStopAlarm: () => _controller.sendStopCommand(device),
+              // FIX: Only pass the callback if the device allows control
+              onSendStopAlarm: device.canControl
+                  ? () => _controller.sendStopCommand(device)
+                  : null,
               batteryMode: device.batteryMode,
             );
           },

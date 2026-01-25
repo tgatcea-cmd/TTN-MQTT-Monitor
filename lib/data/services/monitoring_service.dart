@@ -103,8 +103,6 @@ class MonitoringService {
       bytes = [0x01]; // Fallback
     }
 
-
-
     String base64Payload = base64Encode(bytes);
     Map<String, dynamic> jsonMap = {
       "downlinks": [
@@ -141,20 +139,30 @@ class MonitoringService {
 
       SensorData data;
       if (payload.containsKey('uplink_message')) {
-        var decoded = payload['uplink_message']['decoded_payload'] ?? {};
+        // FIX: Explicitly cast the map to <String, dynamic> to prevent the crash
+        final rawDecoded = payload['uplink_message']['decoded_payload'];
+        final Map<String, dynamic> decoded = rawDecoded != null
+            ? Map<String, dynamic>.from(rawDecoded)
+            : {};
+
+        // If decoded is empty, we attempt to parse the raw Base64 (Optional - see below)
+        if (decoded.isEmpty &&
+            payload['uplink_message']['frm_payload'] != null) {
+          debugPrint(
+            "⚠️ No decoded_payload found. Check TTN Payload Formatter.",
+          );
+        }
+
         data = SensorData.fromPayload(decoded, config.deviceType);
       } else {
-        
         debugPrint("⚠️ [Monitor] Message was not an uplink.");
-        
         return;
       }
 
       if (packetDevId.toLowerCase().contains(config.deviceEui.toLowerCase()) ||
           config.deviceEui.isEmpty) {
-        
         debugPrint("✅ [Monitor] MATCH! Updating Stream & DB...");
-        
+
         _lastReadings[config.id] = data;
 
         if (_deviceStreams.containsKey(config.id)) {

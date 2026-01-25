@@ -9,7 +9,8 @@ class DeviceSidebar extends StatelessWidget {
   final VoidCallback onAddDevice;
   final Function(Device) onEditDevice;
   final Function(Device) onDeleteDevice;
-  // ... rest of the file stays exactly the same ...
+  final bool Function(Device) isDeviceOffline;
+
   const DeviceSidebar({
     super.key,
     required this.devices,
@@ -18,6 +19,7 @@ class DeviceSidebar extends StatelessWidget {
     required this.onAddDevice,
     required this.onEditDevice,
     required this.onDeleteDevice,
+    required this.isDeviceOffline,
   });
 
   @override
@@ -53,24 +55,48 @@ class DeviceSidebar extends StatelessWidget {
               children: [
                 ...devices.map((device) {
                   final isSelected = selectedDevice?.id == device.id;
+                  final isOffline = isDeviceOffline(device);
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8.0,
                       vertical: 4.0,
                     ),
                     child: ListTile(
+                      leading: isOffline
+                          ? const Tooltip(
+                              message: "Offline / Timeout",
+                              child: Icon(
+                                Icons.wifi_off,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                            )
+                          : const Tooltip(
+                              message: "Online",
+                              child: Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                            ),
                       title: Text(
                         device.name,
                         style: TextStyle(
                           fontWeight: isSelected
                               ? FontWeight.bold
                               : FontWeight.normal,
-                          color: isSelected ? Colors.indigo : Colors.black87,
+                          color: isOffline
+                              ? Colors.red[300] // Dim text if offline
+                              : (isSelected ? Colors.indigo : Colors.black87),
                         ),
                       ),
                       subtitle: Text(
                         device.deviceEui,
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -81,9 +107,7 @@ class DeviceSidebar extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      onTap: () {
-                        onDeviceSelected(device);
-                      },
+                      onTap: () => onDeviceSelected(device),
                       trailing: PopupMenuButton(
                         itemBuilder: (context) => [
                           PopupMenuItem(

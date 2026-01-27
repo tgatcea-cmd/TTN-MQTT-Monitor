@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/models.dart';
 import '../../data/services/app_controller.dart';
@@ -165,15 +166,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context: context,
                   builder: (ctx) => ExportDeviceDialog(
                     device: d,
-                    onExport: (password, includeSecrets) {
-                      _controller.exportDeviceConfig(
+                    onExport: (password, includeSecrets) async {
+                      // Make async
+
+                      // 1. Generate the encrypted bytes
+                      final bytes = await _controller.exportDeviceConfig(
                         d,
                         password,
                         includeSecrets,
                       );
-                      debugPrint(
-                        "Exporting ${d.name} with pass: $password, secrets: $includeSecrets",
-                      );
+
+                      if (bytes == null) {
+                        // Handle error (Controller already prints debug error)
+                        return;
+                      }
+
+                      // 2. SAVE THE FILE (This was missing)
+                      try {
+                        // A. Define filename
+                        final fileName =
+                            "${d.name.replaceAll(RegExp(r'\s+'), '_')}.sam";
+
+                        // B. Platform specific saving
+                        if (Platform.isAndroid || Platform.isIOS) {
+                          // Mobile: Write to temp and Share
+                          // Requires 'path_provider' and 'share_plus' packages
+                          /*
+            final dir = await getTemporaryDirectory();
+            final file = File('${dir.path}/$fileName');
+            await file.writeAsBytes(bytes);
+            await Share.shareXFiles([XFile(file.path)], text: 'Configuration for ${d.name}');
+            */
+                          debugPrint(
+                            "File generated (implement Share/Save logic): ${bytes.length} bytes",
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "Export generated (Add share_plus to save)",
+                              ),
+                            ),
+                          );
+                        } else {
+                          // Desktop/Web: Use a file saver package or simple File write
+                          // For testing on Desktop run:
+                          // final file = File('downloads/$fileName');
+                          // await file.writeAsBytes(bytes);
+                          debugPrint("Export bytes ready: ${bytes.length}");
+                        }
+                      } catch (e) {
+                        debugPrint("Error saving file: $e");
+                      }
                     },
                   ),
                 );
@@ -183,33 +226,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   context: context,
                   builder: (ctx) => ImportDeviceDialog(
                     onImport: (files, password) async {
+                      int successCount = 0;
+
                       for (var file in files) {
-                        String? content;
+                        try {
+                          Uint8List? fileBytes;
 
-                        if (file.bytes != null) {
-                          content = String.fromCharCodes(file.bytes!);
-                        } else if (file.path != null) {
-                          final f = File(file.path!);
-                          content = await f.readAsString();
-                        }
+                          // 1. Get bytes correctly based on platform
+                          if (file.bytes != null) {
+                            // Web or Desktop (if cached)
+                            fileBytes = file.bytes;
+                          } else if (file.path != null) {
+                            // Mobile / Desktop (Disk access)
+                            final f = File(file.path!);
+                            fileBytes = await f
+                                .readAsBytes(); // READ AS BYTES, NOT STRING
+                          }
 
-                        if (content != null) {
-                          _controller.importDeviceConfig(file.bytes!, password);
-
-                          debugPrint(
-                            "Loaded file: ${file.name}, Size: ${file.size}",
-                          );
+                          if (fileBytes != null) {
+                            // 2. Pass bytes to controller
+                            await _controller.importDeviceConfig(
+                              fileBytes,
+                              password,
+                            );
+                            successCount++;
+                            debugPrint("Loaded file: ${file.name}");
+                          }
+                        } catch (e) {
+                          debugPrint("Error importing ${file.name}: $e");
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "Error importing ${file.name}: Check password",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       }
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            "Processing ${files.length} import files...",
+                      if (context.mounted && successCount > 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "Successfully imported $successCount devices",
+                            ),
+                            backgroundColor: Colors.green,
                           ),
-                          backgroundColor: Colors.blue,
-                        ),
-                      );
+                        );
+                      }
                     },
                   ),
                 );

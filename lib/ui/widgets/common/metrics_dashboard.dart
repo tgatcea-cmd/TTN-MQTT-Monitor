@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../data/models.dart';
 
-class MetricsDashboard extends StatefulWidget {
+class MetricsDashboard extends StatelessWidget {
   final SensorData? currentReading;
   final bool offline;
   final bool isMonitoring;
@@ -19,348 +20,237 @@ class MetricsDashboard extends StatefulWidget {
     required this.offlineThresholdSeconds,
     this.onSendStopAlarm,
     this.batteryMode = 'voltage',
-    this.dailyMHO, // Added to constructor
+    this.dailyMHO,
     required this.isHighFrequencyAlarm,
   });
 
-  State<MetricsDashboard> createState() => _MetricsDashboardState();
-}
-
-class _MetricsDashboardState extends State<MetricsDashboard>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _alertController;
-  late Animation<double> _alertAnimation;
-
-  DateTime? _lastTimestamp;
-  bool _isHighFrequency = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _alertController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    )..repeat(reverse: true);
-
-    _alertAnimation = Tween<double>(begin: 0.0, end: 15.0).animate(
-      CurvedAnimation(parent: _alertController, curve: Curves.easeInOut),
-    );
-
-    _lastTimestamp = widget.currentReading?.timestamp;
-  }
-
-  @override
-  void dispose() {
-    _alertController.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(MetricsDashboard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    final newReading = widget.currentReading;
-    final oldReading = oldWidget.currentReading;
-
-    // Only recalculate if we have a NEW reading with a different timestamp
-    if (newReading != null &&
-        (oldReading == null || newReading.timestamp != oldReading.timestamp)) {
-      if (_lastTimestamp != null) {
-        final difference = newReading.timestamp.difference(_lastTimestamp!);
-
-        // Alarm Condition: Frequency is High (Interval <= 5 minutes)
-        if (difference.compareTo(const Duration(minutes: 5)) <= 0) {
-          setState(() {
-            _isHighFrequency = true;
-          });
-        } else {
-          setState(() {
-            _isHighFrequency = false;
-          });
-        }
-      }
-      _lastTimestamp = newReading.timestamp;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // 1. Idle State
-    if (widget.currentReading == null) {
-      if (!widget.isMonitoring) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.pause_circle_outline,
-                size: 64,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "System Idle",
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-            ],
-          ),
-        );
-      }
-      return const Center(
+    if (currentReading == null) {
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 20),
-            Text("Waiting for data...", style: TextStyle(color: Colors.grey)),
+            _SpinningIcon(
+              icon: isMonitoring
+                  ? LucideIcons.loader2
+                  : LucideIcons.pauseCircle,
+              isSpinning: isMonitoring,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              isMonitoring ? "Awaiting Sensor Data..." : "Monitoring Paused",
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[500],
+                letterSpacing: -0.5,
+              ),
+            ),
           ],
         ),
       );
     }
 
-    // 2. Main Dashboard Content Wrapped in AnimatedBuilder for Glow
-    return AnimatedBuilder(
-      animation: _alertAnimation,
-      builder: (context, child) {
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: widget.isHighFrequencyAlarm
-                ? [
-                    BoxShadow(
-                      color: Colors.red.withOpacity(0.6),
-                      blurRadius: _alertAnimation.value + 10,
-                      spreadRadius: _alertAnimation.value * 0.2,
-                    ),
-                  ]
-                : [],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: _buildContent(),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildContent() {
-    final metricsWidget = Column(
-      children: [
-        if (widget.offline) _buildOfflineBanner(),
-
-        // High Frequency Warning Banner
-        if (widget.isHighFrequencyAlarm)
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: Colors.red,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Alerts Area
+          if (offline)
+            _buildAlertBanner(
+              context,
+              "Device Offline",
+              "Last signal received > ${offlineThresholdSeconds ~/ 60}m ago",
+              Colors.grey[800]!,
+              LucideIcons.wifiOff,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FadeTransition(
-                  opacity: _alertController,
-                  child: const Icon(
-                    Icons.speed,
-                    color: Colors.yellow,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  "HIGH FREQUENCY DETECTED",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
 
-        // Metrics Grid
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                "Temperature",
-                "${widget.currentReading!.temperature?.toStringAsFixed(1)}°C",
-                Icons.thermostat,
-                Colors.orange,
+          if (isHighFrequencyAlarm)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: _buildAlertBanner(
+                context,
+                "High Frequency Detected",
+                "Rapid changes in sensor reporting interval",
+                const Color(0xFFEF4444),
+                LucideIcons.zap,
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildMetricCard(
-                "Humidity",
-                "${widget.currentReading!.humidity?.toStringAsFixed(1)}%",
-                Icons.water_drop,
-                Colors.blue,
+
+          const SizedBox(height: 24),
+
+          // Primary Grid
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
+              return GridView.count(
+                crossAxisCount: crossAxisCount,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 1.3,
+                children: [
+                  _buildMetricCard(
+                    context,
+                    "TEMPERATURE",
+                    "${currentReading!.temperature?.toStringAsFixed(1)}",
+                    "°C",
+                    LucideIcons.thermometer,
+                    currentReading!.temperature! > 25 ? Colors.orange : null,
+                  ),
+                  _buildMetricCard(
+                    context,
+                    "HUMIDITY",
+                    "${currentReading!.humidity?.toStringAsFixed(1)}",
+                    "%",
+                    LucideIcons.droplets,
+                    Colors.blue,
+                  ),
+                  _buildMetricCard(
+                    context,
+                    "DEW POINT",
+                    currentReading!.dewPoint.toStringAsFixed(1),
+                    "°C",
+                    LucideIcons.cloudRain,
+                    Colors.purple,
+                  ),
+                  currentReading!.co2 != null
+                      ? _buildMetricCard(
+                          context,
+                          "CO2 LEVEL",
+                          "${currentReading!.co2?.toStringAsFixed(0)}",
+                          "ppm",
+                          LucideIcons.wind,
+                          Colors.blueGrey,
+                        )
+                      : _buildMetricCard(
+                          context,
+                          "BATTERY",
+                          batteryMode == 'percentage'
+                              ? "${currentReading!.battery?.toStringAsFixed(0)}"
+                              : "${currentReading!.battery?.toStringAsFixed(2)}",
+                          batteryMode == 'percentage' ? "%" : "V",
+                          LucideIcons.batteryCharging,
+                          Colors.green,
+                        ),
+                ],
+              );
+            },
+          ),
+
+          // Secondary Info (MHO)
+          if (dailyMHO != null) ...[
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(LucideIcons.activity, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Daily Oscillation (MHO)",
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                                color: Colors.grey[600],
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          "Thermal Stress Indicator",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    "${dailyMHO!.toStringAsFixed(2)} Δ",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w300,
+                      color: dailyMHO! > 5.0
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                "Dew Point",
-                "${widget.currentReading!.dewPoint.toStringAsFixed(1)}°C",
-                Icons.cloud_queue,
-                Colors.purple,
+
+          // Action Button
+          if (onSendStopAlarm != null) ...[
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onSendStopAlarm,
+                icon: const Icon(LucideIcons.bellOff, size: 18),
+                label: const Text("SILENCE ALARM"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: widget.currentReading!.co2 != null
-                  ? _buildMetricCard(
-                      "CO2",
-                      "${widget.currentReading!.co2?.toStringAsFixed(0)} ppm",
-                      Icons.air,
-                      Colors.blueGrey,
-                    )
-                  : _buildMetricCard(
-                      widget.batteryMode == 'percentage'
-                          ? "Battery Level"
-                          : "Battery Voltage",
-                      widget.batteryMode == 'percentage'
-                          ? "${widget.currentReading!.battery?.toStringAsFixed(0) ?? '--'} %"
-                          : "${widget.currentReading!.battery?.toStringAsFixed(2) ?? '--'} V",
-                      widget.batteryMode == 'percentage'
-                          ? Icons.battery_full
-                          : Icons.battery_charging_full,
-                      Colors.green,
-                    ),
             ),
           ],
-        ),
-
-        // MHO (Daily Oscillation) Box
-        if (widget.dailyMHO != null) ...[
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.indigo.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.indigo.withValues(alpha: 0.1)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Daily Oscillation (MHO)",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo,
-                      ),
-                    ),
-                    Text(
-                      "Thermal stress indicator",
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                  ],
-                ),
-                Text(
-                  "${widget.dailyMHO!.toStringAsFixed(2)} Δ°C",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: widget.dailyMHO! > 5.0 ? Colors.red : Colors.indigo,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
-
-        // Stop Alarm Button
-        if (widget.onSendStopAlarm != null) ...[
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: widget.onSendStopAlarm,
-              icon: const Icon(Icons.notifications_off),
-              label: const Text("STOP ALARM (DOWNLINK)"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.all(16),
-              ),
-            ),
-          ),
-        ],
-      ],
+      ),
     );
-
-    // Apply grayscale if offline
-    if (widget.offline) {
-      return ColorFiltered(
-        colorFilter: const ColorFilter.matrix(<double>[
-          0.2126,
-          0.7152,
-          0.0722,
-          0,
-          0,
-          0.2126,
-          0.7152,
-          0.0722,
-          0,
-          0,
-          0.2126,
-          0.7152,
-          0.0722,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-        ]),
-        child: Opacity(opacity: 0.8, child: metricsWidget),
-      );
-    }
-
-    return metricsWidget;
   }
 
-  Widget _buildOfflineBanner() {
+  Widget _buildAlertBanner(
+    BuildContext context,
+    String title,
+    String subtitle,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.grey[700],
+        color: color.withOpacity(0.1),
+        border: Border.all(color: color.withOpacity(0.3)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.wifi_off, color: Colors.white),
-          const SizedBox(width: 10),
-          Text(
-            "DEVICE OFFLINE (> ${widget.offlineThresholdSeconds ~/ 60} mins)",
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(color: color.withOpacity(0.8), fontSize: 11),
+              ),
+            ],
           ),
         ],
       ),
@@ -368,33 +258,120 @@ class _MetricsDashboardState extends State<MetricsDashboard>
   }
 
   Widget _buildMetricCard(
+    BuildContext context,
     String title,
     String value,
+    String unit,
     IconData icon,
-    Color color,
+    Color? accentColor,
   ) {
-    return Card(
-      elevation: 2,
-      color: Colors.white,
-      surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-        child: Column(
-          children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-            ),
-            Text(
-              title,
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, size: 20, color: accentColor ?? Colors.grey[400]),
+              Text(
+                unit,
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: -1.0,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.0,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpinningIcon extends StatefulWidget {
+  final IconData icon;
+  final bool isSpinning;
+
+  const _SpinningIcon({required this.icon, required this.isSpinning});
+
+  @override
+  State<_SpinningIcon> createState() => _SpinningIconState();
+}
+
+class _SpinningIconState extends State<_SpinningIcon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+    if (widget.isSpinning) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_SpinningIcon oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSpinning != oldWidget.isSpinning) {
+      if (widget.isSpinning) {
+        _controller.repeat();
+      } else {
+        _controller.stop();
+        _controller.reset();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isSpinning) {
+      return Icon(widget.icon, size: 48, color: Colors.grey[300]);
+    }
+    return RotationTransition(
+      turns: _controller,
+      child: Icon(widget.icon, size: 48, color: Colors.grey[300]),
     );
   }
 }

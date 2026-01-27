@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ui/screens/dashboard_screen.dart'; 
 import 'ui/widgets/dialogs/database_config_dialog.dart';
+import 'ui/theme.dart';
 import 'services.dart';
 
 void main() async {
@@ -52,11 +53,7 @@ class MainApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Safe-Art Monitor',
       scrollBehavior: AppScrollBehavior(),
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors.grey[100],
-      ),
+      theme: AppTheme.theme,
 
       home: isConfigured ? const DashboardScreen() : const SetupScreen(),
     );

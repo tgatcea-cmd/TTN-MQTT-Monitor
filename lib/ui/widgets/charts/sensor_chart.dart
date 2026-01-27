@@ -18,21 +18,19 @@ class SensorChart extends StatelessWidget {
     if (!isAscending) {
       sortedData = sortedData.reversed.toList();
     }
-
-    if (sortedData.length > 50) {
-      sortedData = sortedData.sublist(sortedData.length - 50);
-    }
+    if (sortedData.length > 50) sortedData = sortedData.sublist(sortedData.length - 50);
 
     if (sortedData.isEmpty) {
-      return SizedBox(
-        height: 200,
-        child: Center(child: Text("No data for chart")),
+      return const Center(
+        child: Text("Insufficient Data for Visualization", 
+          style: TextStyle(color: Colors.grey, fontSize: 12)
+        )
       );
     }
 
     List<FlSpot> tempSpots = [];
-    double minY = 0;
-    double maxY = 50;
+    double minY = 100;
+    double maxY = -100;
 
     for (int i = 0; i < sortedData.length; i++) {
       final reading = sortedData[i];
@@ -43,130 +41,87 @@ class SensorChart extends StatelessWidget {
         if (t > maxY) maxY = t;
       }
     }
+    
+    // Add padding to chart Y-axis
+    minY -= 2;
+    maxY += 2;
+    double interval = (maxY - minY) / 4;
+    if (interval == 0) interval = 1;
 
-    minY = minY - 2;
-    maxY = maxY + 2;
-
-    double yInterval = (maxY - minY) / 5;
-    if (yInterval <= 0) yInterval = 1.0;
-
-    return Container(
-      height: 250,
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "ºC Temperature Over Time",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 24, 16),
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: interval,
+            getDrawingHorizontalLine: (value) => FlLine(
+              color: Colors.grey[100],
+              strokeWidth: 1,
             ),
           ),
-          SizedBox(height: 20),
-          Expanded(
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: yInterval,
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      interval: yInterval,
-                      getTitlesWidget: (value, meta) {
-                        if (value == minY) return const SizedBox.shrink();
-
-                        return SideTitleWidget(
-                          axisSide: meta.axisSide,
-                          space: 4,
-
-                          fitInside: SideTitleFitInsideData.fromTitleMeta(
-                            meta,
-                            enabled: true,
-                            distanceFromEdge: 0,
-                          ),
-                          child: Text(
-                            value.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[700],
-                              height: 1.0,
-                            ),
-                          ),
-                        );
-                      },
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                interval: interval,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toStringAsFixed(1),
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500
                     ),
-                  ),
-
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: tempSpots.isNotEmpty ? tempSpots.last.x : 0,
-                minY: minY,
-                maxY: maxY,
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: tempSpots,
-                    isCurved: true,
-                    color: Colors.orange,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.orange.withValues(alpha: 0.2),
-                    ),
-                  ),
-                ],
-
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((spot) {
-                        final dateStr = sortedData[spot.x.toInt()]['timestamp'];
-                        final date = DateTime.parse(dateStr).toLocal();
-                        final time = DateFormat('HH:mm').format(date);
-                        return LineTooltipItem(
-                          '$time\n${spot.y.toStringAsFixed(1)}°C',
-                          TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      }).toList();
-                    },
-                  ),
-                ),
+                  );
+                },
               ),
             ),
+            bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-        ],
+          borderData: FlBorderData(show: false),
+          minX: 0,
+          maxX: (sortedData.length - 1).toDouble(),
+          minY: minY,
+          maxY: maxY,
+          lineBarsData: [
+            LineChartBarData(
+              spots: tempSpots,
+              isCurved: true,
+              curveSmoothness: 0.35,
+              color: const Color(0xFF18181B), // Dark line
+              barWidth: 2,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(show: false), // Clean look, no fill
+            ),
+          ],
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  final dateStr = sortedData[spot.x.toInt()]['timestamp'];
+                  final date = DateTime.parse(dateStr).toLocal();
+                  final time = DateFormat('HH:mm').format(date);
+                  return LineTooltipItem(
+                    '$time\n${spot.y.toStringAsFixed(1)}°C',
+                    const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12
+                    ),
+                  );
+                }).toList();
+              },
+              tooltipRoundedRadius: 8,
+              tooltipPadding: const EdgeInsets.all(12),
+            ),
+          ),
+        ),
       ),
     );
   }

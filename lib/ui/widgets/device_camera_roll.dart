@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/models.dart';
 
 class DeviceCameraRoll extends StatefulWidget {
@@ -23,7 +24,6 @@ class DeviceCameraRoll extends StatefulWidget {
 class _DeviceCameraRollState extends State<DeviceCameraRoll> {
   late PageController _pageController;
   int _currentIndex = 0;
-
   DateTime _lastScrollTime = DateTime.now();
 
   @override
@@ -35,9 +35,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
 
   int _calculateInitialIndex() {
     if (widget.selectedDevice == null || widget.devices.isEmpty) return 0;
-    final index = widget.devices.indexWhere(
-      (d) => d.id == widget.selectedDevice!.id,
-    );
+    final index = widget.devices.indexWhere((d) => d.id == widget.selectedDevice!.id);
     return index != -1 ? index : 0;
   }
 
@@ -57,29 +55,17 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
     }
   }
 
-  // REMOVED: Unused _setInitialPage method
-
   void _handleScroll(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       final now = DateTime.now();
       if (now.difference(_lastScrollTime).inMilliseconds < 200) return;
 
-      if (event.scrollDelta.dy > 0) {
-        if (_currentIndex < widget.devices.length - 1) {
-          _pageController.nextPage(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-          _lastScrollTime = now;
-        }
-      } else if (event.scrollDelta.dy < 0) {
-        if (_currentIndex > 0) {
-          _pageController.previousPage(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-          _lastScrollTime = now;
-        }
+      if (event.scrollDelta.dy > 0 && _currentIndex < widget.devices.length - 1) {
+        _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        _lastScrollTime = now;
+      } else if (event.scrollDelta.dy < 0 && _currentIndex > 0) {
+        _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        _lastScrollTime = now;
       }
     }
   }
@@ -92,21 +78,11 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.devices.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.devices, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No devices configured'),
-          ],
-        ),
-      );
-    }
+    if (widget.devices.isEmpty) return const SizedBox();
 
     return Column(
       children: [
+        // Content Area
         Expanded(
           child: Listener(
             onPointerSignal: _handleScroll,
@@ -119,95 +95,39 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                 }
               },
               itemCount: widget.devices.length,
-              itemBuilder: (context, index) =>
-                  widget.deviceViewBuilder(widget.devices[index]),
+              itemBuilder: (context, index) => widget.deviceViewBuilder(widget.devices[index]),
             ),
           ),
         ),
 
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+        // Minimal Footer Control
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.devices[_currentIndex].name,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.devices[_currentIndex].deviceEui,
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.indigo,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${_currentIndex + 1}/${widget.devices.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
+              IconButton(
+                onPressed: _currentIndex > 0 
+                  ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.ease)
+                  : null,
+                icon: const Icon(LucideIcons.chevronLeft, size: 16),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                "${_currentIndex + 1} / ${widget.devices.length}",
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.0,
+                  color: Colors.grey
                 ),
               ),
-
-              const SizedBox(height: 12),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  widget.devices.length,
-                  (index) => GestureDetector(
-                    onTap: () {
-                      _pageController.animateToPage(
-                        index,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: _currentIndex == index ? 12 : 8,
-                      height: _currentIndex == index ? 12 : 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _currentIndex == index
-                            ? Colors.indigo
-                            : Colors.grey[300],
-                      ),
-                    ),
-                  ),
-                ),
+              const SizedBox(width: 16),
+              IconButton(
+                onPressed: _currentIndex < widget.devices.length - 1
+                  ? () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease)
+                  : null,
+                icon: const Icon(LucideIcons.chevronRight, size: 16),
               ),
             ],
           ),

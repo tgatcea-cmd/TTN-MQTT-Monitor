@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../data/models.dart'; // Corrected import
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../../data/models.dart';
 import '../dialogs/database_config_dialog.dart';
 
 class DeviceSidebar extends StatelessWidget {
@@ -26,177 +27,144 @@ class DeviceSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 280,
-      color: Colors.white,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Monitored Devices',
-                  style: Theme.of(context).textTheme.titleLarge,
+    return Column(
+      children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+          child: Row(
+            children: [
+              const Icon(LucideIcons.shieldCheck, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                'MONITOR',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.0,
+                  color: Theme.of(context).primaryColor,
                 ),
-                SizedBox(height: 8),
-                Text(
-                  '${devices.length} device${devices.length != 1 ? 's' : ''}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Colors.grey),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Divider(height: 1),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                ...devices.map((device) {
-                  final isSelected = selectedDevice?.id == device.id;
-                  final isOffline = isDeviceOffline(device);
-                  final hasAlarm = alarmStatus[device.id] ?? false;
+        ),
 
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0,
-                      vertical: 4.0,
-                    ),
-                    child: ListTile(
-                      leading: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          isOffline
-                              ? const Tooltip(
-                                  message: "Offline / Timeout",
-                                  child: Icon(
-                                    Icons.wifi_off,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                )
-                              : const Tooltip(
-                                  message: "Online",
-                                  child: Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                    size: 20,
-                                  ),
-                                ),
-                          if (hasAlarm)
-                            Positioned(
-                              top: -2,
-                              right: -2,
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      title: Text(
-                        device.name,
-                        style: TextStyle(
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+        Divider(height: 1, color: Theme.of(context).dividerColor),
+
+        // List
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            itemCount: devices.length,
+            separatorBuilder: (c, i) => const SizedBox(height: 4),
+            itemBuilder: (context, index) {
+              final device = devices[index];
+              final isSelected = selectedDevice?.id == device.id;
+              final isOffline = isDeviceOffline(device);
+              final hasAlarm = alarmStatus[device.id] ?? false;
+
+              return InkWell(
+                onTap: () => onDeviceSelected(device),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Colors.grey.withOpacity(0.05)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: isSelected
+                        ? Border.all(color: Theme.of(context).dividerColor)
+                        : Border.all(color: Colors.transparent),
+                  ),
+                  child: Row(
+                    children: [
+                      // Status Dot
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
                           color: isOffline
-                              ? Colors.red[300] // Dim text if offline
-                              : (isSelected ? Colors.indigo : Colors.black87),
+                              ? Theme.of(context).colorScheme.error
+                              : (hasAlarm
+                                    ? Colors.orange
+                                    : const Color(0xFF10B981)),
+                          shape: BoxShape.circle,
                         ),
                       ),
-                      subtitle: Text(
-                        device.deviceEui,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              device.name,
+                              style: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                fontSize: 14,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              device.deviceEui,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context).colorScheme.secondary,
+                                letterSpacing: 0.5,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      selected: isSelected,
-                      tileColor: isSelected
-                          ? Colors.indigo.withValues(alpha: 0.1)
-                          : null,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      onTap: () => onDeviceSelected(device),
-                      trailing: PopupMenuButton(
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            child: Row(
-                              children: [
-                                Icon(Icons.edit, size: 18),
-                                SizedBox(width: 12),
-                                Text('Edit'),
-                              ],
-                            ),
-                            onTap: () {
-                              Future.delayed(
-                                Duration.zero,
-                                () => onEditDevice(device),
-                              );
-                            },
-                          ),
-                          PopupMenuItem(
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete, size: 18, color: Colors.red),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Delete',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ],
-                            ),
-                            onTap: () =>
-                                _showDeleteConfirmation(context, device),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-
-          Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: onAddDevice,
-                  icon: Icon(Icons.add),
-                  label: Text('Add Device'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
-                    foregroundColor: Colors.white,
-                    minimumSize: Size(double.infinity, 48),
+                      if (isSelected)
+                        Builder(
+                          builder: (btnContext) {
+                            return IconButton(
+                              icon: const Icon(
+                                LucideIcons.moreHorizontal,
+                                size: 16,
+                              ),
+                              onPressed: () => _showOptions(btnContext, device),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              color: Theme.of(context).colorScheme.secondary,
+                            );
+                          },
+                        ),
+                    ],
                   ),
                 ),
-                SizedBox(height: 8),
+              );
+            },
+          ),
+        ),
 
-                OutlinedButton.icon(
+        // Footer Actions
+        Divider(height: 1, color: Theme.of(context).dividerColor),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onAddDevice,
+                  icon: const Icon(LucideIcons.plus, size: 18),
+                  label: const Text('New Device'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
                   onPressed: () {
                     showDialog(
                       context: context,
@@ -204,43 +172,62 @@ class DeviceSidebar extends StatelessWidget {
                           DatabaseConfigDialog(onSaved: () {}),
                     );
                   },
-                  icon: Icon(Icons.settings_applications),
-                  label: Text('DB Config'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: Size(double.infinity, 48),
+                  icon: const Icon(LucideIcons.database, size: 16),
+                  label: const Text('Database Config'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.secondary,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, Device device) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Device?'),
-        content: Text(
-          'Are you sure you want to remove "${device.name}" from monitoring? This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              onDeleteDevice(device);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Delete'),
-          ),
-        ],
+void _showOptions(BuildContext context, Device device) {
+    // Now 'context' corresponds to the Builder wrapping the IconButton,
+    // so findRenderObject() returns the button's RenderBox, not the SliverList.
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu(
+      context: context,
+      position: position,
+      surfaceTintColor: Colors.white,
+      color: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      items: [
+        PopupMenuItem(
+          onTap: () => Future.delayed(Duration.zero, () => onEditDevice(device)),
+          child: const Row(
+            children: [
+              Icon(LucideIcons.pencil, size: 16),
+              SizedBox(width: 12),
+              Text('Edit Configuration', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          onTap: () => Future.delayed(Duration.zero, () => onDeleteDevice(device)),
+          child: const Row(
+            children: [
+              Icon(LucideIcons.trash2, size: 16, color: Colors.red),
+              SizedBox(width: 12),
+              Text('Remove Device', style: TextStyle(fontSize: 13, color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

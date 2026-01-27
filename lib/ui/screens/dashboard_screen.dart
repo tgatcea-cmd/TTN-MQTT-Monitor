@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/models.dart';
 import '../../data/services/app_controller.dart';
 import '../../data/services/database_service.dart';
@@ -19,17 +20,15 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final AppController _controller = AppController();
-
   Device? _selectedDevice;
-  bool _isSidebarOpen = true;
   bool _showHistory = false;
   Timer? _refreshTimer;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
     _controller.init();
-    // Refresh UI every second for "Offline" timers
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -43,7 +42,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   bool _isOffline(SensorData? data) {
     if (data == null) return true;
-    // Check if data is older than 15 minutes
     return DateTime.now().difference(data.timestamp).inMinutes > 15;
   }
 
@@ -54,142 +52,231 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Safe-Art Monitor'),
-        leading: IconButton(
-          icon: Icon(_isSidebarOpen ? Icons.menu_open : Icons.menu),
-          onPressed: () => setState(() => _isSidebarOpen = !_isSidebarOpen),
-        ),
-      ),
-      body: ValueListenableBuilder<bool>(
-        valueListenable: _controller.isLoading,
-        builder: (context, loading, _) {
-          if (loading) return const Center(child: CircularProgressIndicator());
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth > 900;
 
-          return Row(
-            children: [
-              // 1. Sidebar
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: _isSidebarOpen ? 280 : 0,
-                child: ClipRect(
-                  child: OverflowBox(
-                    maxWidth: 280,
-                    minWidth: 280,
-                    alignment: Alignment.topLeft,
-                    child: ValueListenableBuilder<List<Device>>(
-                      valueListenable: _controller.devices,
-                      builder: (ctx, devices, _) {
-                        // LISTEN TO ALARMS FOR SIDEBAR
-                        return ValueListenableBuilder<Map<String, bool>>(
-                          valueListenable: _controller.alarmStatus,
-                          builder: (context, alarmMap, _) {
-                            return DeviceSidebar(
-                              devices: devices,
-                              selectedDevice:
-                                  _selectedDevice ??
-                                  (devices.isNotEmpty ? devices.first : null),
-                              onDeviceSelected: (d) {
-                                setState(() => _selectedDevice = d);
-                                _controller.loadHistoryFor(d);
-                              },
-                              onAddDevice: () => _openDeviceDialog(null),
-                              onEditDevice: (d) => _openDeviceDialog(d),
-                              onDeleteDevice: (d) =>
-                                  _controller.deleteDevice(d),
-                              isDeviceOffline: _checkDeviceStatus,
-                              alarmStatus: alarmMap, // PASS MAP TO SIDEBAR
-                            );
-                          },
+        return Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: isDesktop
+              ? null // No AppBar on desktop, we use a custom header structure
+              : AppBar(
+                  leading: IconButton(
+                    icon: const Icon(LucideIcons.menu),
+                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                  ),
+                  title: const Text('Safe-Art Monitor'),
+                  actions: [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _controller.isMonitoring,
+                      builder: (ctx, isRunning, _) {
+                        return IconButton(
+                          icon: Icon(
+                            isRunning
+                                ? LucideIcons.stopCircle
+                                : LucideIcons.playCircle,
+                            color: isRunning ? Colors.red : Colors.green,
+                          ),
+                          onPressed: _controller.toggleMonitoring,
+                          tooltip: isRunning ? 'Stop Stream' : 'Start Stream',
                         );
                       },
                     ),
-                  ),
+                    IconButton(
+                      icon: Icon(
+                        _showHistory
+                            ? LucideIcons.layoutDashboard
+                            : LucideIcons.history,
+                      ),
+                      onPressed: () =>
+                          setState(() => _showHistory = !_showHistory),
+                    ),
+                  ],
                 ),
-              ),
-
-              // 2. Main Content
-              Expanded(child: _buildContentArea()),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildContentArea() {
-    return Column(
-      children: [
-        _buildTopBar(),
-        Expanded(
-          child: ValueListenableBuilder<List<Device>>(
-            valueListenable: _controller.devices,
-            builder: (ctx, devices, _) {
-              if (devices.isEmpty) {
-                return const Center(child: Text("Add a device to begin"));
+          drawer: !isDesktop
+              ? Drawer(
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.white,
+                  shape: const RoundedRectangleBorder(),
+                  child: _buildSidebarContent(),
+                )
+              : null,
+          body: ValueListenableBuilder<bool>(
+            valueListenable: _controller.isLoading,
+            builder: (context, loading, _) {
+              if (loading) {
+                return const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                );
               }
 
-              // Ensure we have a selection
-              final currentDevice = _selectedDevice ?? devices.first;
-
-              if (_showHistory) {
-                return _buildHistoryView(currentDevice);
-              }
-              return _buildLiveView(devices, currentDevice);
+              return Row(
+                children: [
+                  if (isDesktop)
+                    Container(
+                      width: 280,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                        ),
+                      ),
+                      child: _buildSidebarContent(),
+                    ),
+                  Expanded(child: _buildContentArea(isDesktop)),
+                ],
+              );
             },
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: _controller.isMonitoring,
-                  builder: (ctx, isRunning, _) {
-                    return ElevatedButton.icon(
-                      onPressed: _controller.toggleMonitoring,
-                      icon: Icon(isRunning ? Icons.stop : Icons.play_arrow),
-                      label: Text(
-                        isRunning ? 'Stop Monitoring' : 'Start Monitoring',
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isRunning
-                            ? Colors.redAccent
-                            : Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                    );
-                  },
+  Widget _buildSidebarContent() {
+    return ValueListenableBuilder<List<Device>>(
+      valueListenable: _controller.devices,
+      builder: (ctx, devices, _) {
+        return ValueListenableBuilder<Map<String, bool>>(
+          valueListenable: _controller.alarmStatus,
+          builder: (context, alarmMap, _) {
+            return DeviceSidebar(
+              devices: devices,
+              selectedDevice:
+                  _selectedDevice ??
+                  (devices.isNotEmpty ? devices.first : null),
+              onDeviceSelected: (d) {
+                setState(() => _selectedDevice = d);
+                _controller.loadHistoryFor(d);
+                if (Scaffold.of(context).isDrawerOpen) {
+                  Navigator.pop(context);
+                }
+              },
+              onAddDevice: () => _openDeviceDialog(null),
+              onEditDevice: (d) => _openDeviceDialog(d),
+              onDeleteDevice: (d) => _controller.deleteDevice(d),
+              isDeviceOffline: _checkDeviceStatus,
+              alarmStatus: alarmMap,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildContentArea(bool isDesktop) {
+    return ValueListenableBuilder<List<Device>>(
+      valueListenable: _controller.devices,
+      builder: (ctx, devices, _) {
+        if (devices.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(LucideIcons.server, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  "No Devices Configured",
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => setState(() => _showHistory = !_showHistory),
-                  icon: Icon(_showHistory ? Icons.dashboard : Icons.history),
-                  label: Text(_showHistory ? 'Back to Live' : 'View History'),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => _openDeviceDialog(null),
+                  child: const Text("Add First Device"),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ValueListenableBuilder<String>(
-            valueListenable: _controller.statusLog,
-            builder: (_, log, _) => Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              color: Colors.grey[200],
-              child: Text("Status: $log", style: const TextStyle(fontSize: 12)),
+              ],
             ),
+          );
+        }
+
+        final currentDevice = _selectedDevice ?? devices.first;
+
+        return Column(
+          children: [
+            if (isDesktop) _buildDesktopHeader(isDesktop),
+            Expanded(
+              child: Padding(
+                padding: isDesktop
+                    ? const EdgeInsets.symmetric(horizontal: 32, vertical: 24)
+                    : const EdgeInsets.all(16),
+                child: _showHistory
+                    ? _buildHistoryView(currentDevice)
+                    : _buildLiveView(devices, currentDevice),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopHeader(bool isDesktop) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _showHistory ? "Historical Analysis" : "Live Monitor",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ValueListenableBuilder<String>(
+                  valueListenable: _controller.statusLog,
+                  builder: (_, log, _) => Text(
+                    log.isNotEmpty ? log : "System Operational",
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.secondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ValueListenableBuilder<bool>(
+            valueListenable: _controller.isMonitoring,
+            builder: (ctx, isRunning, _) {
+              return OutlinedButton.icon(
+                onPressed: _controller.toggleMonitoring,
+                icon: Icon(
+                  isRunning ? LucideIcons.square : LucideIcons.play,
+                  size: 16,
+                  color: isRunning ? Colors.red : Colors.green,
+                ),
+                label: Text(isRunning ? "Stop Stream" : "Start Stream"),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: isRunning
+                        ? Colors.red.withOpacity(0.3)
+                        : Colors.green.withOpacity(0.3),
+                  ),
+                  foregroundColor: Theme.of(context).primaryColor,
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            onPressed: () => setState(() => _showHistory = !_showHistory),
+            icon: Icon(
+              _showHistory ? LucideIcons.layoutDashboard : LucideIcons.history,
+            ),
+            tooltip: _showHistory ? "Back to Live" : "View History",
           ),
         ],
       ),
@@ -211,12 +298,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           stream: _controller.getDeviceStream(device.id),
           initialData: initial,
           builder: (context, snapshot) {
-            // LISTEN TO ALARMS FOR DASHBOARD GLOW
             return ValueListenableBuilder<Map<String, bool>>(
               valueListenable: _controller.alarmStatus,
               builder: (ctx, alarmMap, _) {
                 final isAlarming = alarmMap[device.id] ?? false;
-
                 return MetricsDashboard(
                   currentReading: snapshot.data,
                   offline: _isOffline(snapshot.data),
@@ -226,7 +311,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ? () => _controller.sendStopCommand(device)
                       : null,
                   batteryMode: device.batteryMode,
-                  isHighFrequencyAlarm: isAlarming, // PASS STATE
+                  isHighFrequencyAlarm: isAlarming,
                 );
               },
             );
@@ -243,19 +328,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final history = historyMap[device.id] ?? [];
         return Column(
           children: [
-            SizedBox(
-              height: 200,
+            Container(
+              height: 300,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
               child: SensorChart(historicalData: history, isAscending: false),
             ),
+            const SizedBox(height: 16),
             Expanded(
-              child: HistoryView(
-                historicalData: history,
-                onLoad: () => _controller.loadHistoryFor(device),
-                // Note: You might need to refactor HistoryView to take the DB service
-                // or just pass a simple callback. For now, we assume simple display.
-                databaseService: DatabaseService(),
-                isAscending: false,
-                deviceId: device.id,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                ),
+                child: HistoryView(
+                  historicalData: history,
+                  onLoad: () => _controller.loadHistoryFor(device),
+                  databaseService: DatabaseService(),
+                  isAscending: false,
+                  deviceId: device.id,
+                ),
               ),
             ),
           ],

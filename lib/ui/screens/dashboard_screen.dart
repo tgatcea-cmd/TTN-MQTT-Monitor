@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:file_saver/file_saver.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/models.dart';
 import '../../data/services/app_controller.dart';
 import '../../data/services/database_service.dart';
@@ -191,12 +194,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         if (Platform.isAndroid || Platform.isIOS) {
                           // Mobile: Write to temp and Share
                           // Requires 'path_provider' and 'share_plus' packages
-                          /*
-            final dir = await getTemporaryDirectory();
-            final file = File('${dir.path}/$fileName');
-            await file.writeAsBytes(bytes);
-            await Share.shareXFiles([XFile(file.path)], text: 'Configuration for ${d.name}');
-            */
+
+                          final dir = await getTemporaryDirectory();
+                          final file = File('${dir.path}/$fileName');
+                          await file.writeAsBytes(bytes);
+                          await Share.shareXFiles([
+                            XFile(file.path),
+                          ], text: 'Configuration for ${d.name}');
+
                           debugPrint(
                             "File generated (implement Share/Save logic): ${bytes.length} bytes",
                           );
@@ -210,8 +215,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         } else {
                           // Desktop/Web: Use a file saver package or simple File write
                           // For testing on Desktop run:
-                          // final file = File('downloads/$fileName');
-                          // await file.writeAsBytes(bytes);
+                          final file = File('./$fileName');
+                          await file.writeAsBytes(bytes);
                           debugPrint("Export bytes ready: ${bytes.length}");
                         }
                       } catch (e) {
@@ -386,8 +391,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
                     color: isRunning
-                        ? Colors.red.withOpacity(0.3)
-                        : Colors.green.withOpacity(0.3),
+                        ? Colors.red.withValues(alpha: 0.3)
+                        : Colors.green.withValues(alpha: 0.3),
                   ),
                   foregroundColor: Theme.of(context).primaryColor,
                 ),

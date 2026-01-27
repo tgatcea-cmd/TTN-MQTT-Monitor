@@ -76,7 +76,7 @@ class DeviceSidebar extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? Colors.grey.withOpacity(0.05)
+                        ? Colors.grey.withValues(alpha: 0.05)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: isSelected

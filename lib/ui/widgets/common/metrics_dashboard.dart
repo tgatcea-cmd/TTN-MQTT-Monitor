@@ -227,8 +227,8 @@ class MetricsDashboard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withValues(alpha: 0.1),
+        border: Border.all(color: color.withValues(alpha:0.3)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -248,7 +248,7 @@ class MetricsDashboard extends StatelessWidget {
               ),
               Text(
                 subtitle,
-                style: TextStyle(color: color.withOpacity(0.8), fontSize: 11),
+                style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11),
               ),
             ],
           ),

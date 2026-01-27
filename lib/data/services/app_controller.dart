@@ -10,6 +10,7 @@ import 'secure_storage_service.dart';
 
 class AppController {
   // ############################################################
+  // ignore: constant_identifier_names
   static const bool USE_DEMO_MODE =
       false; // Cambiar a 'true' para usar datos simulados
   // ############################################################

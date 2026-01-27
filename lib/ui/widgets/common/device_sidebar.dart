@@ -10,6 +10,8 @@ class DeviceSidebar extends StatelessWidget {
   final VoidCallback onAddDevice;
   final Function(Device) onEditDevice;
   final Function(Device) onDeleteDevice;
+  final Function(Device) onExportDevice;
+  final VoidCallback onImportDevices;
   final bool Function(Device) isDeviceOffline;
   final Map<String, bool> alarmStatus;
 
@@ -21,6 +23,8 @@ class DeviceSidebar extends StatelessWidget {
     required this.onAddDevice,
     required this.onEditDevice,
     required this.onDeleteDevice,
+    required this.onExportDevice,
+    required this.onImportDevices,
     required this.isDeviceOffline,
     required this.alarmStatus,
   });
@@ -147,18 +151,32 @@ class DeviceSidebar extends StatelessWidget {
           ),
         ),
 
-        // Footer Actions
+        // Footer
         Divider(height: 1, color: Theme.of(context).dividerColor),
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              // "Export / Import" Row (Optional enhancement for future import)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: onAddDevice,
                   icon: const Icon(LucideIcons.plus, size: 18),
                   label: const Text('New Device'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onImportDevices,
+                  icon: const Icon(LucideIcons.download, size: 18),
+                  label: const Text('Import Backup'),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Theme.of(context).dividerColor),
+                    foregroundColor: Theme.of(context).primaryColor,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -186,15 +204,19 @@ class DeviceSidebar extends StatelessWidget {
     );
   }
 
-void _showOptions(BuildContext context, Device device) {
+  void _showOptions(BuildContext context, Device device) {
     // Now 'context' corresponds to the Builder wrapping the IconButton,
     // so findRenderObject() returns the button's RenderBox, not the SliverList.
     final RenderBox button = context.findRenderObject() as RenderBox;
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(
         button.localToGlobal(Offset.zero, ancestor: overlay),
-        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+        button.localToGlobal(
+          button.size.bottomRight(Offset.zero),
+          ancestor: overlay,
+        ),
       ),
       Offset.zero & overlay.size,
     );
@@ -208,7 +230,18 @@ void _showOptions(BuildContext context, Device device) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       items: [
         PopupMenuItem(
-          onTap: () => Future.delayed(Duration.zero, () => onEditDevice(device)),
+          onTap: () => Future.delayed(Duration.zero, () => onExportDevice(device)),
+          child: const Row(
+            children: [
+              Icon(LucideIcons.share2, size: 16), // Share/Export Icon
+              SizedBox(width: 12),
+              Text('Export Configuration', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          onTap: () =>
+              Future.delayed(Duration.zero, () => onEditDevice(device)),
           child: const Row(
             children: [
               Icon(LucideIcons.pencil, size: 16),
@@ -218,12 +251,16 @@ void _showOptions(BuildContext context, Device device) {
           ),
         ),
         PopupMenuItem(
-          onTap: () => Future.delayed(Duration.zero, () => onDeleteDevice(device)),
+          onTap: () =>
+              Future.delayed(Duration.zero, () => onDeleteDevice(device)),
           child: const Row(
             children: [
               Icon(LucideIcons.trash2, size: 16, color: Colors.red),
               SizedBox(width: 12),
-              Text('Remove Device', style: TextStyle(fontSize: 13, color: Colors.red)),
+              Text(
+                'Remove Device',
+                style: TextStyle(fontSize: 13, color: Colors.red),
+              ),
             ],
           ),
         ),

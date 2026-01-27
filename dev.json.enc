@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "exported_at": "2024-05-20T14:30:00Z",
+  "device": {
+    "id": "uuid-string",
+    "name": "Gallery Monitor 1",
+    "app_id": "app-id-ttn",
+    "broker": "eu1.cloud.thethings.network",
+    "device_eui": "AABBCCDDEEFF0011",
+    "device_type": "TTN",
+    "battery_mode": "voltage",
+    "can_control": true,
+    "control_config": {
+      "port": 1,
+      "payload_hex": "A0"
+    },
+    "access_key": "NNSXS.ABC..." 
+  }
+}

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/models.dart';
@@ -10,6 +11,8 @@ import '../widgets/device_camera_roll.dart';
 import '../widgets/history_view.dart';
 import '../widgets/charts/sensor_chart.dart';
 import '../widgets/dialogs/device_config_dialog.dart';
+import '../widgets/dialogs/export_device_dialog.dart';
+import '../widgets/dialogs/import_device_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -60,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           key: _scaffoldKey,
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: isDesktop
-              ? null // No AppBar on desktop, we use a custom header structure
+              ? null
               : AppBar(
                   leading: IconButton(
                     icon: const Icon(LucideIcons.menu),
@@ -157,6 +160,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onAddDevice: () => _openDeviceDialog(null),
               onEditDevice: (d) => _openDeviceDialog(d),
               onDeleteDevice: (d) => _controller.deleteDevice(d),
+              onExportDevice: (d) {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => ExportDeviceDialog(
+                    device: d,
+                    onExport: (password, includeSecrets) {
+                      _controller.exportDeviceConfig(
+                        d,
+                        password,
+                        includeSecrets,
+                      );
+                      debugPrint(
+                        "Exporting ${d.name} with pass: $password, secrets: $includeSecrets",
+                      );
+                    },
+                  ),
+                );
+              },
+              onImportDevices: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => ImportDeviceDialog(
+                    onImport: (files, password) async {
+                      for (var file in files) {
+                        String? content;
+
+                        if (file.bytes != null) {
+                          content = String.fromCharCodes(file.bytes!);
+                        } else if (file.path != null) {
+                          final f = File(file.path!);
+                          content = await f.readAsString();
+                        }
+
+                        if (content != null) {
+                          _controller.importDeviceConfig(file.bytes!, password);
+
+                          debugPrint(
+                            "Loaded file: ${file.name}, Size: ${file.size}",
+                          );
+                        }
+                      }
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            "Processing ${files.length} import files...",
+                          ),
+                          backgroundColor: Colors.blue,
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
               isDeviceOffline: _checkDeviceStatus,
               alarmStatus: alarmMap,
             );

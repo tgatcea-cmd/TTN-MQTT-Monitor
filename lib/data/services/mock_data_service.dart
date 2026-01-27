@@ -7,6 +7,8 @@ import '../sensor_repository.dart'; // Import the interface
 // 1. Implement the Interface
 class MockDataService implements SensorRepository {
   @override
+  final ValueNotifier<Map<String, bool>> alarmStatus = ValueNotifier({});
+  @override
   final ValueNotifier<bool> isMonitoring = ValueNotifier(false);
   @override
   final ValueNotifier<String> statusLog = ValueNotifier("Demo System Ready");

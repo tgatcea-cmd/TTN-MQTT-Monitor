@@ -8,6 +8,8 @@ abstract class SensorRepository {
 
   ValueNotifier<bool> get isMonitoring;
   ValueNotifier<String> get statusLog;
+
+  ValueNotifier<Map<String, bool>> get alarmStatus;
   
   Future<void> startMonitoring(List<Device> devices);
   void stopMonitoring();

@@ -81,20 +81,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: ValueListenableBuilder<List<Device>>(
                       valueListenable: _controller.devices,
                       builder: (ctx, devices, _) {
-                        return DeviceSidebar(
-                          devices: devices,
-                          selectedDevice:
-                              _selectedDevice ??
-                              (devices.isNotEmpty ? devices.first : null),
-                          // NEW: Pass the status checker to the sidebar
-                          isDeviceOffline: _checkDeviceStatus,
-                          onDeviceSelected: (d) {
-                            setState(() => _selectedDevice = d);
-                            _controller.loadHistoryFor(d);
+                        // LISTEN TO ALARMS FOR SIDEBAR
+                        return ValueListenableBuilder<Map<String, bool>>(
+                          valueListenable: _controller.alarmStatus,
+                          builder: (context, alarmMap, _) {
+                            return DeviceSidebar(
+                              devices: devices,
+                              selectedDevice:
+                                  _selectedDevice ??
+                                  (devices.isNotEmpty ? devices.first : null),
+                              onDeviceSelected: (d) {
+                                setState(() => _selectedDevice = d);
+                                _controller.loadHistoryFor(d);
+                              },
+                              onAddDevice: () => _openDeviceDialog(null),
+                              onEditDevice: (d) => _openDeviceDialog(d),
+                              onDeleteDevice: (d) =>
+                                  _controller.deleteDevice(d),
+                              isDeviceOffline: _checkDeviceStatus,
+                              alarmStatus: alarmMap, // PASS MAP TO SIDEBAR
+                            );
                           },
-                          onAddDevice: () => _openDeviceDialog(null),
-                          onEditDevice: (d) => _openDeviceDialog(d),
-                          onDeleteDevice: (d) => _controller.deleteDevice(d),
                         );
                       },
                     ),
@@ -204,17 +211,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
           stream: _controller.getDeviceStream(device.id),
           initialData: initial,
           builder: (context, snapshot) {
-            final data = snapshot.data;
-            return MetricsDashboard(
-              currentReading: snapshot.data,
-              offline: _isOffline(data),
-              isMonitoring: _controller.isMonitoring.value,
-              offlineThresholdSeconds: 900,
-              // FIX: Only pass the callback if the device allows control
-              onSendStopAlarm: device.canControl
-                  ? () => _controller.sendStopCommand(device)
-                  : null,
-              batteryMode: device.batteryMode,
+            // LISTEN TO ALARMS FOR DASHBOARD GLOW
+            return ValueListenableBuilder<Map<String, bool>>(
+              valueListenable: _controller.alarmStatus,
+              builder: (ctx, alarmMap, _) {
+                final isAlarming = alarmMap[device.id] ?? false;
+
+                return MetricsDashboard(
+                  currentReading: snapshot.data,
+                  offline: _isOffline(snapshot.data),
+                  isMonitoring: _controller.isMonitoring.value,
+                  offlineThresholdSeconds: 900,
+                  onSendStopAlarm: device.canControl
+                      ? () => _controller.sendStopCommand(device)
+                      : null,
+                  batteryMode: device.batteryMode,
+                  isHighFrequencyAlarm: isAlarming, // PASS STATE
+                );
+              },
             );
           },
         );

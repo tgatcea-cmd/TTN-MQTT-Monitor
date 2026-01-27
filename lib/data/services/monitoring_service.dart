@@ -20,6 +20,8 @@ class MonitoringService {
   final ValueNotifier<bool> isMonitoring = ValueNotifier(false);
   final ValueNotifier<String> statusLog = ValueNotifier("System Ready");
 
+  final ValueNotifier<Map<String, bool>> alarmStatus = ValueNotifier({});
+
   final Map<String, SensorData> _lastReadings = {};
   SensorData? getLastReading(String deviceId) => _lastReadings[deviceId];
 
@@ -81,9 +83,16 @@ class MonitoringService {
     _clients.clear();
     isMonitoring.value = false;
     statusLog.value = "Monitoring Stopped";
+    alarmStatus.value = {};
   }
 
   Future<void> sendStopCommand(Device device) async {
+    final currentAlarms = Map<String, bool>.from(alarmStatus.value);
+    if (currentAlarms.containsKey(device.id)) {
+      currentAlarms[device.id] = false; // Turn off glow/dot
+      alarmStatus.value = currentAlarms;
+    }
+
     final client = _clients[device.appId];
     if (client == null) {
       debugPrint('Error: No conectado');
@@ -94,6 +103,7 @@ class MonitoringService {
     List<int> bytes = [];
     String hex = device.controlPayload.replaceAll('0x', '').replaceAll(' ', '');
     try {
+      if (hex.length % 2 != 0) hex = '0$hex';
       for (int i = 0; i < hex.length; i += 2) {
         String byteStr = hex.substring(i, i + 2);
         bytes.add(int.parse(byteStr, radix: 16));
@@ -162,6 +172,29 @@ class MonitoringService {
       if (packetDevId.toLowerCase().contains(config.deviceEui.toLowerCase()) ||
           config.deviceEui.isEmpty) {
         debugPrint("✅ [Monitor] MATCH! Updating Stream & DB...");
+
+        bool shouldAlarm = false;
+
+        if (_lastReadings.containsKey(config.id)) {
+          final lastTime = _lastReadings[config.id]!.timestamp;
+          final diff = data.timestamp.difference(lastTime).abs();
+
+          // Rule 1: High Frequency Trigger (<= 5 minutes)
+          // Rule 2: Cooldown Clear (> 3 minutes)
+          // Implementation: If diff <= 3 mins, ALARM ON. If diff > 3 mins, ALARM OFF.
+          // (Using 3 minutes as the strict safety boundary based on user request)
+          if (diff.inMinutes <= 3) {
+            shouldAlarm = true;
+          } else {
+            shouldAlarm = false;
+          }
+        }
+
+        final currentAlarms = Map<String, bool>.from(alarmStatus.value);
+        if (currentAlarms[config.id] != shouldAlarm) {
+          currentAlarms[config.id] = shouldAlarm;
+          alarmStatus.value = currentAlarms;
+        }
 
         _lastReadings[config.id] = data;
 

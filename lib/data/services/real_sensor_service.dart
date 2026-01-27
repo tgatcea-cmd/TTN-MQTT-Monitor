@@ -9,6 +9,8 @@ class RealSensorService implements SensorRepository {
   final _db = DatabaseService();
 
   @override
+  ValueNotifier<Map<String, bool>> get alarmStatus => _monitor.alarmStatus;
+  @override
   ValueNotifier<bool> get isMonitoring => _monitor.isMonitoring;
   @override
   ValueNotifier<String> get statusLog => _monitor.statusLog;

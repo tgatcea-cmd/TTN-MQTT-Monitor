@@ -27,6 +27,7 @@ class HistoryView extends StatefulWidget {
 class _HistoryViewState extends State<HistoryView> {
   late List<Map<String, dynamic>> _liveData;
   StreamSubscription? _subscription;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -94,6 +95,7 @@ class _HistoryViewState extends State<HistoryView> {
   @override
   void dispose() {
     _subscription?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -157,84 +159,94 @@ class _HistoryViewState extends State<HistoryView> {
         SizedBox(height: 20),
 
         Expanded(
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _liveData.length,
-            itemBuilder: (context, index) {
-              final reading = _liveData[index];
-              final timestamp = DateTime.parse(reading['timestamp']);
-              final deviceId = reading['device_id'];
-              final profileName = reading['profile_name'];
+          child: Scrollbar(
+            controller: _scrollController,
+            thumbVisibility: true,
+            child: ListView.builder(
+              controller: _scrollController,
+              physics:
+                  const AlwaysScrollableScrollPhysics(), // Force scroll capability
+              itemCount: _liveData.length,
+              padding: const EdgeInsets.only(right: 12), // Space for scrollbar
+              itemBuilder: (context, index) {
+                final reading = _liveData[index];
+                final timestamp = DateTime.parse(reading['timestamp']);
+                final deviceId = reading['device_id'];
+                final profileName = reading['profile_name'];
 
-              return Card(
-                margin: EdgeInsets.only(bottom: 8),
-                child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            timestamp.toLocal().toString().split('.')[0],
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            "$profileName - $deviceId",
-                            style: TextStyle(color: Colors.grey, fontSize: 10),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Row(
-                        children: [
-                          if (reading['temperature'] != null)
-                            Expanded(
-                              child: _buildMiniMetric(
-                                "Temp",
-                                "${reading['temperature'].toStringAsFixed(1)}°C",
-                                Icons.thermostat,
-                                Colors.orange,
+                return Card(
+                  margin: EdgeInsets.only(bottom: 8),
+                  child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              timestamp.toLocal().toString().split('.')[0],
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
                               ),
                             ),
-                          if (reading['humidity'] != null)
-                            Expanded(
-                              child: _buildMiniMetric(
-                                "Hum",
-                                "${reading['humidity'].toStringAsFixed(1)}%",
-                                Icons.water_drop,
-                                Colors.blue,
+                            Text(
+                              "$profileName - $deviceId",
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 10,
                               ),
                             ),
-                          if (reading['co2'] != null)
-                            Expanded(
-                              child: _buildMiniMetric(
-                                "CO2",
-                                "${reading['co2'].toStringAsFixed(0)} ppm",
-                                Icons.air,
-                                Colors.blueGrey,
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            if (reading['temperature'] != null)
+                              Expanded(
+                                child: _buildMiniMetric(
+                                  "Temp",
+                                  "${reading['temperature'].toStringAsFixed(1)}°C",
+                                  Icons.thermostat,
+                                  Colors.orange,
+                                ),
                               ),
-                            ),
-                          if (reading['battery'] != null)
-                            Expanded(
-                              child: _buildMiniMetric(
-                                "Batt",
-                                "${reading['battery'].toStringAsFixed(2)}V",
-                                Icons.battery_charging_full,
-                                Colors.green,
+                            if (reading['humidity'] != null)
+                              Expanded(
+                                child: _buildMiniMetric(
+                                  "Hum",
+                                  "${reading['humidity'].toStringAsFixed(1)}%",
+                                  Icons.water_drop,
+                                  Colors.blue,
+                                ),
                               ),
-                            ),
-                        ],
-                      ),
-                    ],
+                            if (reading['co2'] != null)
+                              Expanded(
+                                child: _buildMiniMetric(
+                                  "CO2",
+                                  "${reading['co2'].toStringAsFixed(0)} ppm",
+                                  Icons.air,
+                                  Colors.blueGrey,
+                                ),
+                              ),
+                            if (reading['battery'] != null)
+                              Expanded(
+                                child: _buildMiniMetric(
+                                  "Batt",
+                                  "${reading['battery'].toStringAsFixed(2)}V",
+                                  Icons.battery_charging_full,
+                                  Colors.green,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ],

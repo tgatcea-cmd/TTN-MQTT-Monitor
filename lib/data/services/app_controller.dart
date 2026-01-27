@@ -34,6 +34,7 @@ class AppController {
       ValueNotifier({});
 
   // Notificador de Estado de Monitoreo
+  ValueNotifier<Map<String, bool>> get alarmStatus => _repository.alarmStatus;
   ValueNotifier<bool> get isMonitoring => _repository.isMonitoring;
   ValueNotifier<String> get statusLog => _repository.statusLog;
 

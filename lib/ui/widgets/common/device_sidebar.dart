@@ -10,6 +10,7 @@ class DeviceSidebar extends StatelessWidget {
   final Function(Device) onEditDevice;
   final Function(Device) onDeleteDevice;
   final bool Function(Device) isDeviceOffline;
+  final Map<String, bool> alarmStatus;
 
   const DeviceSidebar({
     super.key,
@@ -20,6 +21,7 @@ class DeviceSidebar extends StatelessWidget {
     required this.onEditDevice,
     required this.onDeleteDevice,
     required this.isDeviceOffline,
+    required this.alarmStatus,
   });
 
   @override
@@ -56,6 +58,7 @@ class DeviceSidebar extends StatelessWidget {
                 ...devices.map((device) {
                   final isSelected = selectedDevice?.id == device.id;
                   final isOffline = isDeviceOffline(device);
+                  final hasAlarm = alarmStatus[device.id] ?? false;
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(
@@ -63,23 +66,51 @@ class DeviceSidebar extends StatelessWidget {
                       vertical: 4.0,
                     ),
                     child: ListTile(
-                      leading: isOffline
-                          ? const Tooltip(
-                              message: "Offline / Timeout",
-                              child: Icon(
-                                Icons.wifi_off,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                            )
-                          : const Tooltip(
-                              message: "Online",
-                              child: Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 20,
+                      leading: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          isOffline
+                              ? const Tooltip(
+                                  message: "Offline / Timeout",
+                                  child: Icon(
+                                    Icons.wifi_off,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                )
+                              : const Tooltip(
+                                  message: "Online",
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 20,
+                                  ),
+                                ),
+                          if (hasAlarm)
+                            Positioned(
+                              top: -2,
+                              right: -2,
+                              child: Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 2,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
+                        ],
+                      ),
                       title: Text(
                         device.name,
                         style: TextStyle(

@@ -150,11 +150,22 @@ class MonitoringService {
         final uplink = payload['uplink_message'];
         Map<String, dynamic> decoded = {};
 
-        // 2. If empty, manually decode the frm_payload
+        // --- FIX START ---
+        // 1. Check if the Network Server already decoded it (This is the robust way)
+        if (uplink['decoded_payload'] != null) {
+          debugPrint("✅ Using server's decoded_payload");
+          decoded = Map<String, dynamic>.from(uplink['decoded_payload']);
+        }
+
+        // 2. Only if empty, manually decode the frm_payload
         if (decoded.isEmpty && uplink['frm_payload'] != null) {
           debugPrint("🛠 Manually decoding CayenneLPP from frm_payload...");
-          Uint8List rawBytes = base64.decode(uplink['frm_payload']);
-          decoded = decodeCayenneLPP(rawBytes);
+          try {
+            Uint8List rawBytes = base64.decode(uplink['frm_payload']);
+            decoded = decodeCayenneLPP(rawBytes);
+          } catch (e) {
+            debugPrint("❌ Manual decode failed: $e");
+          }
         }
 
         if (decoded.isEmpty) {
@@ -197,7 +208,7 @@ class MonitoringService {
     }
   }
 
-  Map<String, dynamic> decodeCayenneLPP(Uint8List bytes) {
+Map<String, dynamic> decodeCayenneLPP(Uint8List bytes) {
     Map<String, dynamic> decoded = {};
     int i = 0;
 
@@ -213,52 +224,50 @@ class MonitoringService {
           decoded['digital_out_$channel'] = bytes[i++];
           break;
         case 0x02: // Analog Input (2 bytes, 0.01 signed)
-          int val = (ByteData.sublistView(bytes, i, i + 2).getInt16(0));
+          int val = ByteData.sublistView(bytes, i, i + 2).getInt16(0, Endian.little);
           decoded['analog_in_$channel'] = val / 100.0;
           i += 2;
           break;
         case 0x67: // Temperature (2 bytes, 0.1°C signed)
-          int val = (ByteData.sublistView(bytes, i, i + 2).getInt16(0));
+          int val = ByteData.sublistView(bytes, i, i + 2).getInt16(0, Endian.little);
           decoded['temperature_$channel'] = val / 10.0;
           i += 2;
           break;
         case 0x68: // Humidity (1 byte, 0.5% unsigned)
           decoded['humidity_$channel'] = bytes[i++] / 2.0;
           break;
-        case 0x71: // Accelerometer (6 bytes, 0.001G signed per axis)
-          decoded['accel_${channel}_x'] =
-              (ByteData.sublistView(bytes, i, i + 2).getInt16(0)) / 1000.0;
-          decoded['accel_${channel}_y'] =
-              (ByteData.sublistView(bytes, i + 2, i + 4).getInt16(0)) / 1000.0;
-          decoded['accel_${channel}_z'] =
-              (ByteData.sublistView(bytes, i + 4, i + 6).getInt16(0)) / 1000.0;
+        case 0x73: // Barometer (2 bytes, 0.1 hPa signed) - NEW
+          int val = ByteData.sublistView(bytes, i, i + 2).getInt16(0, Endian.little);
+          decoded['pressure_$channel'] = val / 10.0;
+          i += 2;
+          break;
+        case 0x75: // Battery Level (1 byte, unsigned) - NEW
+          decoded['battery_$channel'] = bytes[i++]; 
+          break;
+        case 0x7D: // Concentration/CO2 (2 bytes, usually ppm) - NEW (Type 125)
+          int val = ByteData.sublistView(bytes, i, i + 2).getInt16(0, Endian.little);
+          decoded['co2_$channel'] = val.toDouble();
+          i += 2;
+          break;
+        case 0x71: // Accelerometer (6 bytes)
+          decoded['accel_${channel}_x'] = ByteData.sublistView(bytes, i, i + 2).getInt16(0, Endian.little) / 1000.0;
+          decoded['accel_${channel}_y'] = ByteData.sublistView(bytes, i + 2, i + 4).getInt16(0, Endian.little) / 1000.0;
+          decoded['accel_${channel}_z'] = ByteData.sublistView(bytes, i + 4, i + 6).getInt16(0, Endian.little) / 1000.0;
           i += 6;
           break;
-        case 0x88: // GPS (9 bytes)
-          // Lat: 0.0001 signed, Lon: 0.0001 signed, Alt: 0.01 signed
-          double lat =
-              ((bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2]).toSigned(
-                24,
-              ) /
-              10000.0;
-          double lon =
-              ((bytes[i + 3] << 16) | (bytes[i + 4] << 8) | bytes[i + 5])
-                  .toSigned(24) /
-              10000.0;
-          double alt =
-              ((bytes[i + 6] << 16) | (bytes[i + 7] << 8) | bytes[i + 8])
-                  .toSigned(24) /
-              100.0;
-          decoded['gps_$channel'] = {
-            "latitude": lat,
-            "longitude": lon,
-            "altitude": alt,
-          };
+        case 0x88: // GPS (9 bytes) - GPS usually stays standard (Big Endian) but check your device!
+          // Keeping standard parsing for GPS as it's typically 3 bytes per axis, not standard int16
+          double lat = ((bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2]).toSigned(24) / 10000.0;
+          double lon = ((bytes[i + 3] << 16) | (bytes[i + 4] << 8) | bytes[i + 5]).toSigned(24) / 10000.0;
+          double alt = ((bytes[i + 6] << 16) | (bytes[i + 7] << 8) | bytes[i + 8]).toSigned(24) / 100.0;
+          decoded['gps_$channel'] = {"latitude": lat, "longitude": lon, "altitude": alt};
           i += 9;
           break;
         default:
           debugPrint("Unknown LPP Type: $type at index $i");
-          return decoded;
+          // Increment index to avoid infinite loop, assuming at least 1 byte payload to skip
+          i++; 
+          break;
       }
     }
     return decoded;

@@ -1,5 +1,5 @@
 name: mqtt_wrapper
-description: "A new Flutter project."
+description: "Safe-Art Monitoring Software with MQTT & TTN Integration."
 publish_to: "none"
 version: 0.1.0
 

@@ -22,7 +22,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
   late TextEditingController _apiKeyController;
   late bool _canControl;
   late String _deviceType;
-  late String _batteryMode;
+  late String _batteryMode; // Restored state variable
   late TextEditingController _controlPortController;
   late TextEditingController _controlPayloadController;
 
@@ -38,7 +38,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
     _apiKeyController = TextEditingController(text: widget.device?.accessKey ?? '');
     _canControl = widget.device?.canControl ?? false;
     _deviceType = widget.device?.deviceType ?? 'TTN';
-    _batteryMode = widget.device?.batteryMode ?? 'voltage';
+    _batteryMode = widget.device?.batteryMode ?? 'voltage'; // Default to voltage
     _controlPortController = TextEditingController(
       text: widget.device?.controlPort.toString() ?? '1',
     );
@@ -63,7 +63,6 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
     if (_nameController.text.isEmpty ||
         _appIdController.text.isEmpty ||
         _deviceEuiController.text.isEmpty) {
-      // Use a cleaner Snackbar or internal error state in a real app
       return;
     }
 
@@ -76,7 +75,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       accessKey: _apiKeyController.text,
       canControl: _canControl,
       deviceType: _deviceType,
-      batteryMode: _batteryMode,
+      batteryMode: _batteryMode, // Saved correctly
       controlPort: int.tryParse(_controlPortController.text) ?? 1,
       controlPayload: _controlPayloadController.text.trim(),
       createdAt: widget.device?.createdAt ?? DateTime.now(),
@@ -88,7 +87,6 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // We use a Dialog with specific constraints to prevent it from filling the screen
     return Dialog(
       backgroundColor: AppTheme.surface,
       surfaceTintColor: Colors.transparent,
@@ -139,15 +137,16 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                     _buildTextField("Device EUI", _deviceEuiController, hint: "eui-xxxxxxxx"),
                     
                     const SizedBox(height: 32),
-                    _buildSectionHeader("Connection"),
+                    _buildSectionHeader("Connection & Format"),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(child: _buildTextField("TTN App ID", _appIdController, readOnly: widget.device != null)),
                         const SizedBox(width: 16),
+                        // Device Type Dropdown
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: _deviceType,
+                            value: _deviceType,
                             decoration: const InputDecoration(labelText: 'Type'),
                             items: const [
                               DropdownMenuItem(value: 'TTN', child: Text('Standard')),
@@ -158,6 +157,22 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    
+                    // RESTORED: Battery Mode Dropdown
+                    DropdownButtonFormField<String>(
+                      value: _batteryMode,
+                      decoration: const InputDecoration(
+                        labelText: 'Battery Reporting',
+                        helperText: "Select the format sent by your device",
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'voltage', child: Text('Voltage (V)')),
+                        DropdownMenuItem(value: 'percentage', child: Text('Percentage (%)')),
+                      ],
+                      onChanged: (v) => setState(() => _batteryMode = v!),
+                    ),
+
                     const SizedBox(height: 16),
                     _buildTextField("MQTT Broker", _brokerController),
                     const SizedBox(height: 16),

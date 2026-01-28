@@ -1,5 +1,8 @@
+// ui/widgets/dialogs/device_config_dialog.dart
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../data/models.dart';
+import '../../theme.dart';
 
 class DeviceConfigDialog extends StatefulWidget {
   final Device? device;
@@ -23,7 +26,6 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
   late TextEditingController _controlPortController;
   late TextEditingController _controlPayloadController;
 
-
   @override
   void initState() {
     super.initState();
@@ -32,12 +34,8 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
     _brokerController = TextEditingController(
       text: widget.device?.broker ?? 'eu1.cloud.thethings.network',
     );
-    _deviceEuiController = TextEditingController(
-      text: widget.device?.deviceEui ?? '',
-    );
-    _apiKeyController = TextEditingController(
-      text: widget.device?.accessKey ?? '',
-    );
+    _deviceEuiController = TextEditingController(text: widget.device?.deviceEui ?? '');
+    _apiKeyController = TextEditingController(text: widget.device?.accessKey ?? '');
     _canControl = widget.device?.canControl ?? false;
     _deviceType = widget.device?.deviceType ?? 'TTN';
     _batteryMode = widget.device?.batteryMode ?? 'voltage';
@@ -65,12 +63,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
     if (_nameController.text.isEmpty ||
         _appIdController.text.isEmpty ||
         _deviceEuiController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('All fields are required'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Use a cleaner Snackbar or internal error state in a real app
       return;
     }
 
@@ -84,10 +77,8 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       canControl: _canControl,
       deviceType: _deviceType,
       batteryMode: _batteryMode,
-
       controlPort: int.tryParse(_controlPortController.text) ?? 1,
       controlPayload: _controlPayloadController.text.trim(),
-
       createdAt: widget.device?.createdAt ?? DateTime.now(),
     );
 
@@ -97,177 +88,172 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.device == null ? 'Add New Device' : 'Edit Device'),
-      content: SingleChildScrollView(
+    // We use a Dialog with specific constraints to prevent it from filling the screen
+    return Dialog(
+      backgroundColor: AppTheme.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppTheme.border),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Device Name',
-                hintText: 'e.g., Gallery Monitor 1',
-                border: OutlineInputBorder(),
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.background,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(LucideIcons.settings, size: 20),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    widget.device == null ? 'New Device' : 'Configuration',
+                    style: AppTheme.theme.textTheme.headlineSmall,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _appIdController,
-              decoration: const InputDecoration(
-                labelText: 'TTN App ID',
-                hintText: 'e.g., app@ttn',
-                border: OutlineInputBorder(),
-              ),
-              readOnly: widget.device != null,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _brokerController,
-              decoration: const InputDecoration(
-                labelText: 'MQTT Broker',
-                hintText: 'e.g., eu1.cloud.thethings.network',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _deviceType,
-              decoration: const InputDecoration(
-                labelText: 'Device Type',
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'TTN',
-                  child: Text('TTN / Standard LoRaWAN'),
-                ),
-                DropdownMenuItem(
-                  value: 'Dragino',
-                  child: Text('Dragino LPS8v2'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _deviceType = value;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _batteryMode, 
-              decoration: const InputDecoration(
-                labelText: 'Battery Display Mode',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.battery_std),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'voltage', child: Text('Voltage (V)')),
-                DropdownMenuItem(
-                  value: 'percentage',
-                  child: Text('Percentage (%)'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => _batteryMode = value);
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _deviceEuiController,
-              decoration: const InputDecoration(
-                labelText: 'Device EUI',
-                hintText: 'Format: eui-xxxxxxxxxxxxxxxx',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _apiKeyController,
-              decoration: const InputDecoration(
-                labelText: 'API Key',
-                hintText: 'NNSXS...',
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.vpn_key),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 12),
-            CheckboxListTile(
-              title: const Text('Can Control (Send Downlink Commands)'),
-              value: _canControl,
-              onChanged: (value) {
-                setState(() {
-                  _canControl = value ?? false;
-                });
-              },
-            ),
+            const Divider(height: 1),
 
-            if (_canControl) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.05),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+            // Scrollable Form
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Alarm Stop Command",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red),
-                    ),
-                    const SizedBox(height: 8),
+                    _buildSectionHeader("Identification"),
+                    const SizedBox(height: 16),
+                    _buildTextField("Device Name", _nameController, hint: "Gallery Monitor 1"),
+                    const SizedBox(height: 16),
+                    _buildTextField("Device EUI", _deviceEuiController, hint: "eui-xxxxxxxx"),
+                    
+                    const SizedBox(height: 32),
+                    _buildSectionHeader("Connection"),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
+                        Expanded(child: _buildTextField("TTN App ID", _appIdController, readOnly: widget.device != null)),
+                        const SizedBox(width: 16),
                         Expanded(
-                          flex: 1,
-                          child: TextField(
-                            controller: _controlPortController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Port',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: _controlPayloadController,
-                            decoration: const InputDecoration(
-                              labelText: 'Hex Payload (e.g. A0)',
-                              hintText: '01',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _deviceType,
+                            decoration: const InputDecoration(labelText: 'Type'),
+                            items: const [
+                              DropdownMenuItem(value: 'TTN', child: Text('Standard')),
+                              DropdownMenuItem(value: 'Dragino', child: Text('Dragino')),
+                            ],
+                            onChanged: (v) => setState(() => _deviceType = v!),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    _buildTextField("MQTT Broker", _brokerController),
+                    const SizedBox(height: 16),
+                    _buildTextField("API Key", _apiKeyController, obscureText: true),
+
+                    const SizedBox(height: 32),
+                    _buildSectionHeader("Capabilities"),
+                    const SizedBox(height: 16),
+                    
+                    // Custom Checkbox Tile
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppTheme.border),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: CheckboxListTile(
+                        title: const Text("Remote Control Enabled", style: TextStyle(fontWeight: FontWeight.w500)),
+                        subtitle: const Text("Allows sending downlink commands", style: TextStyle(fontSize: 12, color: AppTheme.secondary)),
+                        value: _canControl,
+                        activeColor: AppTheme.primary,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        onChanged: (v) => setState(() => _canControl = v ?? false),
+                      ),
+                    ),
+
+                    if (_canControl) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.background,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.border),
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 80,
+                              child: _buildTextField("Port", _controlPortController),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildTextField("Payload (Hex)", _controlPayloadController),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ),  
+                ),
               ),
-            ],
+            ),
+
+            const Divider(height: 1),
+            // Footer Actions
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _save,
+                    child: Text(widget.device == null ? 'Create Device' : 'Save Changes'),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _save,
-          child: Text(widget.device == null ? 'Add' : 'Update'),
-        ),
-      ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title.toUpperCase(),
+      style: AppTheme.theme.textTheme.labelSmall,
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, {bool obscureText = false, bool readOnly = false, String? hint}) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      readOnly: readOnly,
+      style: AppTheme.theme.textTheme.bodyMedium?.copyWith(color: AppTheme.primary),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+      ),
     );
   }
 }

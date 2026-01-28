@@ -31,7 +31,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final AppController _controller = AppController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  
+
   Device? _selectedDevice;
   bool _showHistory = false;
   Timer? _refreshTimer;
@@ -83,7 +83,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          
+
           // --- MOBILE APP BAR ---
           appBar: isDesktop
               ? null
@@ -100,8 +100,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       builder: (ctx, isRunning, _) {
                         return IconButton(
                           icon: Icon(
-                            isRunning ? LucideIcons.stopCircle : LucideIcons.playCircle,
-                            color: isRunning ? AppTheme.error : AppTheme.success,
+                            isRunning
+                                ? LucideIcons.stopCircle
+                                : LucideIcons.playCircle,
+                            color: isRunning
+                                ? AppTheme.error
+                                : AppTheme.success,
                           ),
                           onPressed: _controller.toggleMonitoring,
                           tooltip: isRunning ? 'Stop Stream' : 'Start Stream',
@@ -111,15 +115,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     // History Toggle
                     IconButton(
                       icon: Icon(
-                        _showHistory ? LucideIcons.layoutDashboard : LucideIcons.history,
+                        _showHistory
+                            ? LucideIcons.layoutDashboard
+                            : LucideIcons.history,
                         color: AppTheme.secondary,
                       ),
-                      onPressed: () => setState(() => _showHistory = !_showHistory),
+                      onPressed: () =>
+                          setState(() => _showHistory = !_showHistory),
                       tooltip: _showHistory ? "Back to Live" : "View History",
                     ),
                   ],
                 ),
-          
+
           // --- MOBILE DRAWER ---
           drawer: !isDesktop
               ? Drawer(
@@ -129,20 +136,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: _buildSidebar(isMobile: true),
                 )
               : null,
-          
+
           // --- MAIN BODY ---
           body: ValueListenableBuilder<bool>(
             valueListenable: _controller.isLoading,
             builder: (context, loading, _) {
               if (loading) {
-                return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                return const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                );
               }
 
               if (isDesktop) {
                 return Row(
                   children: [
                     SizedBox(width: 280, child: _buildSidebar(isMobile: false)),
-                    VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
+                    VerticalDivider(
+                      width: 1,
+                      color: Theme.of(context).dividerColor,
+                    ),
                     Expanded(
                       child: Container(
                         color: AppTheme.background,
@@ -169,7 +181,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // ---------------------------------------------------------------------------
   // Structural Components
   // ---------------------------------------------------------------------------
-  
+
   Widget _buildSidebar({required bool isMobile}) {
     return ValueListenableBuilder<List<Device>>(
       valueListenable: _controller.devices,
@@ -179,7 +191,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           builder: (context, alarmMap, _) {
             return DeviceSidebar(
               devices: devices,
-              selectedDevice: _selectedDevice ?? (devices.isNotEmpty ? devices.first : null),
+              selectedDevice:
+                  _selectedDevice ??
+                  (devices.isNotEmpty ? devices.first : null),
               onDeviceSelected: _onDeviceSelected,
               onAddDevice: () => _openDeviceDialog(null),
               onEditDevice: (d) => _openDeviceDialog(d),
@@ -212,7 +226,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // Content Area (Scrolls internally)
             Expanded(
               child: Padding(
-                padding: EdgeInsets.all(isDesktop ? AppTheme.spacing32 : AppTheme.spacing16),
+                padding: EdgeInsets.all(
+                  isDesktop ? AppTheme.spacing32 : AppTheme.spacing16,
+                ),
                 child: _showHistory
                     ? _buildHistoryView(currentDevice)
                     : _buildLiveView(devices, currentDevice),
@@ -229,7 +245,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -247,17 +265,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 builder: (_, log, _) => Text(
                   log.isNotEmpty ? log : "System Operational",
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 13, 
-                    color: AppTheme.tertiary
+                    fontSize: 13,
+                    color: AppTheme.tertiary,
                   ),
                 ),
               ),
             ],
           ),
-          
+
           Row(
             children: [
-               ValueListenableBuilder<bool>(
+              ValueListenableBuilder<bool>(
                 valueListenable: _controller.isMonitoring,
                 builder: (ctx, isRunning, _) {
                   return OutlinedButton.icon(
@@ -275,13 +293,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               IconButton(
                 onPressed: () => setState(() => _showHistory = !_showHistory),
                 icon: Icon(
-                  _showHistory ? LucideIcons.layoutDashboard : LucideIcons.history,
+                  _showHistory
+                      ? LucideIcons.layoutDashboard
+                      : LucideIcons.history,
                   color: AppTheme.primary,
                 ),
                 tooltip: _showHistory ? "Back to Live" : "View History",
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -294,7 +314,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Icon(LucideIcons.server, size: 64, color: AppTheme.border),
           const SizedBox(height: 24),
-          Text("No Devices Configured", style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            "No Devices Configured",
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () => _openDeviceDialog(null),
@@ -405,21 +428,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (ctx) => ExportDeviceDialog(
         device: d,
         onExport: (password, includeSecrets) async {
-          final bytes = await _controller.exportDeviceConfig(d, password, includeSecrets);
+          final bytes = await _controller.exportDeviceConfig(
+            d,
+            password,
+            includeSecrets,
+          );
           if (bytes == null) return;
 
           try {
-            final fileName = "${d.name.replaceAll(RegExp(r'\s+'), '_')}.sam";
+            final fileName = d.name.replaceAll(RegExp(r'\s+'), '_');
             if (Platform.isAndroid || Platform.isIOS) {
               final dir = await getTemporaryDirectory();
               final file = File('${dir.path}/$fileName');
               await file.writeAsBytes(bytes);
-              await Share.shareXFiles([XFile(file.path)], text: 'Config for ${d.name}');
+              await Share.shareXFiles([
+                XFile(file.path),
+              ], text: 'Config for ${d.name}');
             } else {
+              await FileSaver.instance.saveFile(
+                name: fileName,
+                bytes: bytes,
+                ext: 'sam',
+                mimeType: MimeType.other,
+              );
               debugPrint("Exported ${bytes.length} bytes to $fileName");
             }
             if (mounted) {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Export ready")));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text("Export ready")));
             }
           } catch (e) {
             debugPrint("Export error: $e");
@@ -435,23 +472,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (ctx) => ImportDeviceDialog(
         onImport: (files, password) async {
           int successCount = 0;
+          List<String> errors = [];
+
           for (var file in files) {
-             try {
-                Uint8List? fileBytes;
-                if (file.bytes != null) fileBytes = file.bytes;
-                else if (file.path != null) fileBytes = await File(file.path!).readAsBytes();
-                
-                if (fileBytes != null) {
-                  await _controller.importDeviceConfig(fileBytes, password);
-                  successCount++;
-                }
-             } catch (e) {
-               debugPrint("Import error: $e");
-             }
+            try {
+              Uint8List? fileBytes;
+              if (file.bytes != null) {
+                fileBytes = file.bytes;
+              } else if (file.path != null) {
+                fileBytes = await File(file.path!).readAsBytes();
+              }
+
+              if (fileBytes != null) {
+                await _controller.importDeviceConfig(fileBytes, password);
+                successCount++;
+              }
+            } catch (e) {
+              debugPrint("Import error: $e");
+              // Capture the specific error (e.g. "Incorrect Password")
+              errors.add(e.toString().replaceAll('Exception: ', ''));
+            }
           }
-          if (mounted && successCount > 0) {
+
+          if (!mounted) return;
+
+          if (successCount > 0) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Imported $successCount devices"), backgroundColor: AppTheme.success)
+              SnackBar(
+                content: Text("Successfully imported $successCount devices"),
+                backgroundColor: AppTheme.success,
+              ),
+            );
+          }
+
+          // Show errors if any failed
+          if (errors.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                // Show the first error as an example
+                content: Text("Failed to import: ${errors.first}"),
+                backgroundColor: AppTheme.error,
+                duration: const Duration(seconds: 4),
+              ),
             );
           }
         },

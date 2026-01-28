@@ -1,5 +1,8 @@
+// ui/widgets/dialogs/database_config_dialog.dart
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../services.dart';
+import '../../theme.dart';
 
 class DatabaseConfigDialog extends StatefulWidget {
   final VoidCallback onSaved;
@@ -33,34 +36,10 @@ class _DatabaseConfigDialogState extends State<DatabaseConfigDialog> {
   }
 
   Future<void> _save() async {
-    if (_urlController.text.isEmpty || _keyController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('URL y Key son obligatorias'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
-
-    await _storage.saveDatabaseConfig(
-      _urlController.text.trim(),
-      _keyController.text.trim(),
-    );
-
+    await _storage.saveDatabaseConfig(_urlController.text.trim(), _keyController.text.trim());
     setState(() => _isLoading = false);
-
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Configuración guardada. Reinicia la app si es necesario.',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
       widget.onSaved();
       Navigator.pop(context);
     }
@@ -68,61 +47,75 @@ class _DatabaseConfigDialogState extends State<DatabaseConfigDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.security, color: Colors.indigo),
-          SizedBox(width: 10),
-          Text('Configurar Base de Datos'),
-        ],
+    return Dialog(
+      backgroundColor: AppTheme.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppTheme.border),
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Introduce las credenciales de Supabase. Se guardarán de forma encriptada en el dispositivo.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 450),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(LucideIcons.database, color: AppTheme.primary),
+                  const SizedBox(width: 16),
+                  Text("Database Config", style: AppTheme.theme.textTheme.headlineSmall),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "Configure external Supabase connection for persistent storage.",
+                style: AppTheme.theme.textTheme.bodyMedium?.copyWith(color: AppTheme.secondary),
+              ),
+              const SizedBox(height: 24),
+              
+              TextField(
+                controller: _urlController,
+                decoration: const InputDecoration(
+                  labelText: 'Supabase URL',
+                  hintText: 'https://xyz.supabase.co',
+                  prefixIcon: Icon(LucideIcons.link, size: 16),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _keyController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Anon Key',
+                  hintText: 'Public API Key',
+                  prefixIcon: Icon(LucideIcons.key, size: 16),
+                ),
+              ),
+              
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _save,
+                    child: _isLoading 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Save Connection'),
+                  ),
+                ],
+              ),
+            ],
           ),
-          SizedBox(height: 20),
-          TextField(
-            controller: _urlController,
-            decoration: InputDecoration(
-              labelText: 'Supabase URL',
-              hintText: 'https://xyz.supabase.co',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.link),
-            ),
-          ),
-          SizedBox(height: 16),
-          TextField(
-            controller: _keyController,
-            decoration: InputDecoration(
-              labelText: 'Supabase Anon Key',
-              hintText: 'eyJ...',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.vpn_key),
-            ),
-            obscureText: true,
-            maxLines: 1,
-          ),
-        ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _save,
-          child: _isLoading
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text('Guardar Conexión'),
-        ),
-      ],
     );
   }
 }

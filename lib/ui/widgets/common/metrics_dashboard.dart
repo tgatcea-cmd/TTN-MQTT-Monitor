@@ -331,8 +331,9 @@ class _SpinningIconState extends State<_SpinningIcon> with SingleTickerProviderS
   void didUpdateWidget(_SpinningIcon oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isSpinning != oldWidget.isSpinning) {
-      if (widget.isSpinning) _controller.repeat();
-      else {
+      if (widget.isSpinning) {
+        _controller.repeat();
+      } else {
         _controller.stop();
         _controller.reset();
       }

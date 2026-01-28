@@ -1,6 +1,8 @@
+// ui/widgets/charts/sensor_chart.dart
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../theme.dart';
 
 class SensorChart extends StatelessWidget {
   final List<Map<String, dynamic>> historicalData;
@@ -14,16 +16,19 @@ class SensorChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Data Preparation
     List<Map<String, dynamic>> sortedData = List.from(historicalData);
     if (!isAscending) {
       sortedData = sortedData.reversed.toList();
     }
+    // Limit to last 50 points for visual clarity
     if (sortedData.length > 50) sortedData = sortedData.sublist(sortedData.length - 50);
 
     if (sortedData.isEmpty) {
-      return const Center(
-        child: Text("Insufficient Data for Visualization", 
-          style: TextStyle(color: Colors.grey, fontSize: 12)
+      return Center(
+        child: Text(
+          "Awaiting Data Signal", 
+          style: AppTheme.theme.textTheme.bodyMedium?.copyWith(color: AppTheme.tertiary),
         )
       );
     }
@@ -42,25 +47,31 @@ class SensorChart extends StatelessWidget {
       }
     }
     
-    // Add padding to chart Y-axis
+    // Dynamic Y-axis padding for "breathing room"
     minY -= 2;
     maxY += 2;
     double interval = (maxY - minY) / 4;
     if (interval == 0) interval = 1;
 
+    // 2. Chart Construction
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 24, 16),
+      // Extra right padding to prevent the last label from being clipped
+      padding: const EdgeInsets.fromLTRB(16, 32, 24, 16),
       child: LineChart(
         LineChartData(
+          // A. Clean Grid
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
             horizontalInterval: interval,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: Colors.grey[100],
+              color: AppTheme.border, // Zinc 200
               strokeWidth: 1,
+              dashArray: [4, 4], // Dashed line for subtlety
             ),
           ),
+          
+          // B. Minimalist Titles
           titlesData: FlTitlesData(
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
@@ -68,12 +79,15 @@ class SensorChart extends StatelessWidget {
                 reservedSize: 40,
                 interval: interval,
                 getTitlesWidget: (value, meta) {
-                  return Text(
-                    value.toStringAsFixed(1),
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text(
+                      value.toStringAsFixed(1),
+                      style: AppTheme.theme.textTheme.labelSmall?.copyWith(
+                        color: AppTheme.tertiary, // Zinc 400
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.right,
                     ),
                   );
                 },
@@ -83,25 +97,43 @@ class SensorChart extends StatelessWidget {
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
+          
+          // C. "Floating" Look (No Borders)
           borderData: FlBorderData(show: false),
+          
           minX: 0,
           maxX: (sortedData.length - 1).toDouble(),
           minY: minY,
           maxY: maxY,
+          
+          // D. The Data Line
           lineBarsData: [
             LineChartBarData(
               spots: tempSpots,
               isCurved: true,
               curveSmoothness: 0.35,
-              color: const Color(0xFF18181B), // Dark line
+              color: AppTheme.primary, // Dark Zinc line for maximum contrast
               barWidth: 2,
               isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(show: false), // Clean look, no fill
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.primary.withValues(alpha: 0.1),
+                    AppTheme.primary.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
             ),
           ],
+          
+          // E. Premium Interactions
           lineTouchData: LineTouchData(
             touchTooltipData: LineTouchTooltipData(
+              tooltipBgColor: AppTheme.primary,
               getTooltipItems: (touchedSpots) {
                 return touchedSpots.map((spot) {
                   final dateStr = sortedData[spot.x.toInt()]['timestamp'];
@@ -111,15 +143,18 @@ class SensorChart extends StatelessWidget {
                     '$time\n${spot.y.toStringAsFixed(1)}°C',
                     const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      fontFamily: 'Inter',
                     ),
                   );
                 }).toList();
               },
               tooltipRoundedRadius: 8,
-              tooltipPadding: const EdgeInsets.all(12),
+              tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              tooltipMargin: 16,
             ),
+            handleBuiltInTouches: true,
           ),
         ),
       ),

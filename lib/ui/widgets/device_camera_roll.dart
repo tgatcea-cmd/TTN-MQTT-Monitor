@@ -1,7 +1,9 @@
+// ui/widgets/device_camera_roll.dart
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../data/models.dart';
+import '../theme.dart';
 
 class DeviceCameraRoll extends StatefulWidget {
   final List<Device> devices;
@@ -48,8 +50,8 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
         _currentIndex = newIndex;
         _pageController.animateToPage(
           newIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutQuart, // Smoother, more premium feel
         );
       }
     }
@@ -61,10 +63,16 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
       if (now.difference(_lastScrollTime).inMilliseconds < 200) return;
 
       if (event.scrollDelta.dy > 0 && _currentIndex < widget.devices.length - 1) {
-        _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 400), 
+          curve: Curves.easeOutQuart
+        );
         _lastScrollTime = now;
       } else if (event.scrollDelta.dy < 0 && _currentIndex > 0) {
-        _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        _pageController.previousPage(
+          duration: const Duration(milliseconds: 400), 
+          curve: Curves.easeOutQuart
+        );
         _lastScrollTime = now;
       }
     }
@@ -82,7 +90,7 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
 
     return Column(
       children: [
-        // Content Area
+        // 1. Content Area (Expanded to fill available vertical space)
         Expanded(
           child: Listener(
             onPointerSignal: _handleScroll,
@@ -95,44 +103,66 @@ class _DeviceCameraRollState extends State<DeviceCameraRoll> {
                 }
               },
               itemCount: widget.devices.length,
+              physics: const BouncingScrollPhysics(),
               itemBuilder: (context, index) => widget.deviceViewBuilder(widget.devices[index]),
             ),
           ),
         ),
 
-        // Minimal Footer Control
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                onPressed: _currentIndex > 0 
-                  ? () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.ease)
-                  : null,
-                icon: const Icon(LucideIcons.chevronLeft, size: 16),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                "${_currentIndex + 1} / ${widget.devices.length}",
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.0,
-                  color: Colors.grey
+        // 2. Pagination / Navigation Footer
+        // Only show if there is more than one device to reduce clutter
+        if (widget.devices.length > 1)
+          Container(
+            padding: const EdgeInsets.only(top: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildNavButton(
+                  icon: LucideIcons.chevronLeft,
+                  onTap: _currentIndex > 0 
+                    ? () => _pageController.previousPage(
+                        duration: const Duration(milliseconds: 400), 
+                        curve: Curves.easeOutQuart
+                      )
+                    : null,
                 ),
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                onPressed: _currentIndex < widget.devices.length - 1
-                  ? () => _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease)
-                  : null,
-                icon: const Icon(LucideIcons.chevronRight, size: 16),
-              ),
-            ],
+                
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    "${_currentIndex + 1} / ${widget.devices.length}",
+                    style: AppTheme.theme.textTheme.labelSmall?.copyWith(
+                      letterSpacing: 1.0,
+                      color: AppTheme.tertiary,
+                    ),
+                  ),
+                ),
+                
+                _buildNavButton(
+                  icon: LucideIcons.chevronRight,
+                  onTap: _currentIndex < widget.devices.length - 1
+                    ? () => _pageController.nextPage(
+                        duration: const Duration(milliseconds: 400), 
+                        curve: Curves.easeOutQuart
+                      )
+                    : null,
+                ),
+              ],
+            ),
           ),
-        ),
       ],
+    );
+  }
+
+  Widget _buildNavButton({required IconData icon, VoidCallback? onTap}) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(icon, size: 20),
+      color: AppTheme.primary,
+      disabledColor: AppTheme.border, // Very subtle when disabled
+      splashRadius: 20,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
     );
   }
 }

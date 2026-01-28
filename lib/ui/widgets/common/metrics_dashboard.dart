@@ -1,6 +1,8 @@
+// ui/widgets/common/metrics_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../data/models.dart';
+import '../../theme.dart';
 
 class MetricsDashboard extends StatelessWidget {
   final SensorData? currentReading;
@@ -26,25 +28,20 @@ class MetricsDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Loading State
     if (currentReading == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _SpinningIcon(
-              icon: isMonitoring
-                  ? LucideIcons.loader2
-                  : LucideIcons.pauseCircle,
+              icon: isMonitoring ? LucideIcons.loader2 : LucideIcons.pauseCircle,
               isSpinning: isMonitoring,
             ),
             const SizedBox(height: 24),
             Text(
-              isMonitoring ? "Awaiting Sensor Data..." : "Monitoring Paused",
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[500],
-                letterSpacing: -0.5,
-              ),
+              isMonitoring ? "Acquiring Signal..." : "Monitoring Paused",
+              style: AppTheme.theme.textTheme.bodyMedium?.copyWith(color: AppTheme.tertiary),
             ),
           ],
         ),
@@ -52,16 +49,19 @@ class MetricsDashboard extends StatelessWidget {
     }
 
     return SingleChildScrollView(
+      // Padding handled by parent now, but we add bottom padding for scroll space
+      padding: const EdgeInsets.only(bottom: 48), 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Alerts Area
+          
+          // 2. Alert Banners (Stacked)
           if (offline)
             _buildAlertBanner(
               context,
-              "Device Offline",
-              "Last signal received > ${offlineThresholdSeconds ~/ 60}m ago",
-              Colors.grey[800]!,
+              "Signal Lost",
+              "Device offline for >${offlineThresholdSeconds ~/ 60} minutes",
+              AppTheme.secondary,
               LucideIcons.wifiOff,
             ),
 
@@ -70,94 +70,95 @@ class MetricsDashboard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 12),
               child: _buildAlertBanner(
                 context,
-                "High Frequency Detected",
-                "Rapid changes in sensor reporting interval",
-                const Color(0xFFEF4444),
+                "Anomaly Detected",
+                "High frequency reporting pattern observed",
+                AppTheme.warning,
                 LucideIcons.zap,
               ),
             ),
 
           const SizedBox(height: 24),
 
-          // Primary Grid
+          // 3. Primary Metrics Grid
+          // We use LayoutBuilder to switch between 2 columns (mobile) and 4 (desktop)
           LayoutBuilder(
             builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth > 600 ? 4 : 2;
+              final width = constraints.maxWidth;
+              // Breakpoint logic: < 600px = 2 cols, > 600px = 4 cols
+              final int crossAxisCount = width < 600 ? 2 : 4;
+              
               return GridView.count(
                 crossAxisCount: crossAxisCount,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
-                childAspectRatio: 1.3,
+                childAspectRatio: 1.2, // Slightly taller for elegance
                 children: [
                   _buildMetricCard(
                     context,
-                    "TEMPERATURE",
-                    "${currentReading!.temperature?.toStringAsFixed(1)}",
+                    "Temperature",
+                    currentReading!.temperature?.toStringAsFixed(1) ?? "--",
                     "°C",
-                    LucideIcons.thermometer,
-                    currentReading!.temperature! > 25 ? Colors.orange : null,
+                    currentReading!.temperature != null && currentReading!.temperature! > 25 
+                      ? AppTheme.warning 
+                      : null,
                   ),
                   _buildMetricCard(
                     context,
-                    "HUMIDITY",
-                    "${currentReading!.humidity?.toStringAsFixed(1)}",
+                    "Humidity",
+                    currentReading!.humidity?.toStringAsFixed(1) ?? "--",
                     "%",
-                    LucideIcons.droplets,
-                    Colors.blue,
+                    null,
                   ),
                   _buildMetricCard(
                     context,
-                    "DEW POINT",
+                    "Dew Point",
                     currentReading!.dewPoint.toStringAsFixed(1),
                     "°C",
-                    LucideIcons.cloudRain,
-                    Colors.purple,
+                    null,
                   ),
                   currentReading!.co2 != null
                       ? _buildMetricCard(
                           context,
-                          "CO2 LEVEL",
-                          "${currentReading!.co2?.toStringAsFixed(0)}",
+                          "CO2 Level",
+                          currentReading!.co2?.toStringAsFixed(0) ?? "--",
                           "ppm",
-                          LucideIcons.wind,
-                          Colors.blueGrey,
+                          null,
                         )
                       : _buildMetricCard(
                           context,
-                          "BATTERY",
+                          "Power",
                           batteryMode == 'percentage'
-                              ? "${currentReading!.battery?.toStringAsFixed(0)}"
-                              : "${currentReading!.battery?.toStringAsFixed(2)}",
+                              ? currentReading!.battery?.toStringAsFixed(0) ?? "--"
+                              : currentReading!.battery?.toStringAsFixed(2) ?? "--",
                           batteryMode == 'percentage' ? "%" : "V",
-                          LucideIcons.batteryCharging,
-                          Colors.green,
+                          null,
                         ),
                 ],
               );
             },
           ),
 
-          // Secondary Info (MHO)
+          // 4. Secondary Metrics (Wide Cards)
           if (dailyMHO != null) ...[
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Theme.of(context).dividerColor),
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.border),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor,
+                      color: AppTheme.background,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(LucideIcons.activity, size: 24),
+                    child: const Icon(LucideIcons.activity, size: 24, color: AppTheme.primary),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -165,30 +166,22 @@ class MetricsDashboard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Daily Oscillation (MHO)",
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                                color: Colors.grey[600],
-                              ),
+                          "OSCILLATION INDEX (MHO)",
+                          style: AppTheme.theme.textTheme.labelSmall,
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           "Thermal Stress Indicator",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: AppTheme.theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
                         ),
                       ],
                     ),
                   ),
                   Text(
                     "${dailyMHO!.toStringAsFixed(2)} Δ",
-                    style: TextStyle(
+                    style: AppTheme.theme.textTheme.displayLarge?.copyWith(
                       fontSize: 24,
-                      fontWeight: FontWeight.w300,
-                      color: dailyMHO! > 5.0
-                          ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).primaryColor,
+                      color: dailyMHO! > 5.0 ? AppTheme.error : AppTheme.primary,
                     ),
                   ),
                 ],
@@ -196,18 +189,19 @@ class MetricsDashboard extends StatelessWidget {
             ),
           ],
 
-          // Action Button
+          // 5. Critical Actions
           if (onSendStopAlarm != null) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: onSendStopAlarm,
                 icon: const Icon(LucideIcons.bellOff, size: 18),
-                label: const Text("SILENCE ALARM"),
+                label: const Text("SILENCE ACTIVE ALARM"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
+                  backgroundColor: AppTheme.error,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
                 ),
               ),
             ),
@@ -217,40 +211,43 @@ class MetricsDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildAlertBanner(
-    BuildContext context,
-    String title,
-    String subtitle,
-    Color color,
-    IconData icon,
-  ) {
+  // ---------------------------------------------------------------------------
+  // Helper Widgets
+  // ---------------------------------------------------------------------------
+
+  Widget _buildAlertBanner(BuildContext context, String title, String subtitle, Color color, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        border: Border.all(color: color.withValues(alpha:0.3)),
-        borderRadius: BorderRadius.circular(8),
+        color: AppTheme.surface,
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11),
-              ),
-            ],
+                Text(
+                  subtitle,
+                  style: AppTheme.theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 12,
+                    color: AppTheme.secondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -259,62 +256,50 @@ class MetricsDashboard extends StatelessWidget {
 
   Widget _buildMetricCard(
     BuildContext context,
-    String title,
+    String label,
     String value,
     String unit,
-    IconData icon,
-    Color? accentColor,
+    Color? valueColor,
   ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Header: Label + Unit (Top aligned)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, size: 20, color: accentColor ?? Colors.grey[400]),
+              Text(
+                label.toUpperCase(),
+                style: AppTheme.theme.textTheme.labelSmall,
+              ),
               Text(
                 unit,
-                style: TextStyle(
-                  color: Colors.grey[400],
+                style: AppTheme.theme.textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.tertiary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w300,
-                    letterSpacing: -1.0,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
+          
+          // Body: The Big Number
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: AppTheme.theme.textTheme.displayLarge?.copyWith(
+                color: valueColor ?? AppTheme.primary,
               ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.0,
-                  color: Colors.grey[500],
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -338,10 +323,7 @@ class _SpinningIconState extends State<_SpinningIcon> with SingleTickerProviderS
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
+    _controller = AnimationController(duration: const Duration(seconds: 2), vsync: this);
     if (widget.isSpinning) _controller.repeat();
   }
 
@@ -349,9 +331,8 @@ class _SpinningIconState extends State<_SpinningIcon> with SingleTickerProviderS
   void didUpdateWidget(_SpinningIcon oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isSpinning != oldWidget.isSpinning) {
-      if (widget.isSpinning) {
-        _controller.repeat();
-      } else {
+      if (widget.isSpinning) _controller.repeat();
+      else {
         _controller.stop();
         _controller.reset();
       }
@@ -366,12 +347,8 @@ class _SpinningIconState extends State<_SpinningIcon> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.isSpinning) {
-      return Icon(widget.icon, size: 48, color: Colors.grey[300]);
-    }
-    return RotationTransition(
-      turns: _controller,
-      child: Icon(widget.icon, size: 48, color: Colors.grey[300]),
-    );
+    final icon = Icon(widget.icon, size: 32, color: AppTheme.tertiary);
+    if (!widget.isSpinning) return icon;
+    return RotationTransition(turns: _controller, child: icon);
   }
 }

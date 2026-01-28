@@ -1,40 +1,54 @@
+// ui/theme.dart
 import 'package:flutter/material.dart';
 
 class AppTheme {
   // ---------------------------------------------------------------------------
-  // 1. Color Palette (The "Swiss Spa" System)
+  // 1. The "Swiss Spa" Color System (Zinc-based)
   // ---------------------------------------------------------------------------
   
-  // Base Tones
-  static const Color background = Color(0xFFFBFBF9); // Warm Alabaster
-  static const Color surface = Color(0xFFFFFFFF);    // Pure White
-  static const Color surfaceSubtle = Color(0xFFF4F4F5); // Very light grey for hover/inputs
+  // Backgrounds
+  static const Color background = Color(0xFFFAFAFA); // Zinc 50 (The canvas)
+  static const Color surface = Color(0xFFFFFFFF);    // White (The cards)
+  static const Color surfaceSubtle = Color(0xFFF4F4F5); // Zinc 100 (Inputs/Hovers)
   
-  // Text & Content Tones
-  static const Color primary = Color(0xFF18181B);    // Deep Charcoal (Zinc 950)
-  static const Color secondary = Color(0xFF71717A);  // Muted Grey (Zinc 500)
-  static const Color tertiary = Color(0xFFA1A1AA);   // Light Grey (Zinc 400)
-  static const Color border = Color(0xFFE4E4E7);     // Subtle Border (Zinc 200)
+  // Content
+  static const Color primary = Color(0xFF18181B);    // Zinc 950 (High contrast text)
+  static const Color secondary = Color(0xFF71717A);  // Zinc 500 (Supporting text)
+  static const Color tertiary = Color(0xFFA1A1AA);   // Zinc 400 (Inactive/Hints)
+  
+  // Structure
+  static const Color border = Color(0xFFE4E4E7);     // Zinc 200 (The defining line)
+  static const Color divider = Color(0xFFEEEEF0);    // Subtle separation
 
-  // Functional Palette (Refined)
-  // We avoid "Traffic Light" colors. We use sophisticated, slightly desaturated tones.
-  static const Color accent = Color(0xFF0F766E);     // Deep Teal (Calm, Professional)
-  static const Color error = Color(0xFFBE123C);      // Rose (Not bright red)
-  static const Color success = Color(0xFF047857);    // Emerald (Natural green)
-  static const Color warning = Color(0xFFB45309);    // Amber (Earthy orange)
+  // Status & Accents (Desaturated, Professional)
+  static const Color accent = Color(0xFF0D9488);     // Teal 600 (Primary Action)
+  static const Color error = Color(0xFFBE123C);      // Rose 700
+  static const Color success = Color(0xFF047857);    // Emerald 700
+  static const Color warning = Color(0xFFB45309);    // Amber 700
 
   // ---------------------------------------------------------------------------
-  // 2. Theme Definition
+  // 2. The Spacing Grid (4pt system)
+  // ---------------------------------------------------------------------------
+  static const double spacing4 = 4.0;
+  static const double spacing8 = 8.0;
+  static const double spacing12 = 12.0;
+  static const double spacing16 = 16.0;
+  static const double spacing24 = 24.0;
+  static const double spacing32 = 32.0;
+  static const double spacing48 = 48.0;
+
+  // ---------------------------------------------------------------------------
+  // 3. Theme Definition
   // ---------------------------------------------------------------------------
   static ThemeData get theme {
     return ThemeData(
       useMaterial3: true,
-      fontFamily: 'Inter', 
-      
-      // Global Color Scheme
+      fontFamily: 'Inter',
       scaffoldBackgroundColor: background,
       primaryColor: primary,
-      dividerColor: border,
+      dividerColor: divider,
+      
+      // Color Scheme
       colorScheme: const ColorScheme.light(
         primary: primary,
         onPrimary: Colors.white,
@@ -47,88 +61,82 @@ class AppTheme {
         outline: border,
       ),
 
-      // AppBar: Minimalist, "Floating" feel implies logic elsewhere, 
-      // but here we set the base transparent/flat style.
+      // Typography (Editorial Style)
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -1.0, color: primary, height: 1.2
+        ),
+        headlineSmall: TextStyle(
+          fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: -0.5, color: primary, height: 1.3
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -0.2, color: primary, height: 1.4
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.0, color: secondary, height: 1.5
+        ),
+        labelSmall: TextStyle(
+          fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5, color: secondary, height: 1.4
+        ),
+      ),
+
+      // AppBar (Invisible Structure)
       appBarTheme: const AppBarTheme(
-        backgroundColor: background, // Blends with scaffold
+        backgroundColor: background,
         foregroundColor: primary,
         elevation: 0,
-        centerTitle: false,
         scrolledUnderElevation: 0,
+        centerTitle: false,
         titleTextStyle: TextStyle(
           fontFamily: 'Inter',
           color: primary,
-          fontSize: 20,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
-          letterSpacing: -0.5, // Tight editorial spacing
+          letterSpacing: -0.5,
         ),
         iconTheme: IconThemeData(color: primary, size: 20),
       ),
 
-      // Card: Flat, bordered, clean. No default shadows.
+      // Cards (Flat, Bordered, No Shadow)
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16), // Consistent 16px radius
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: border, width: 1),
         ),
       ),
 
-      // Buttons: Sophisticated geometry
+      // Buttons (Geometric, Tactile)
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            letterSpacing: 0.2,
-          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, fontFamily: 'Inter'),
         ),
       ),
-
+      
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
           backgroundColor: Colors.transparent,
+          foregroundColor: primary,
           elevation: 0,
           side: const BorderSide(color: border),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            letterSpacing: 0.2,
-          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, fontFamily: 'Inter'),
         ),
       ),
 
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: secondary,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-      ),
-
-      // Inputs: Clean, spacious, minimal borders
+      // Inputs (Architectural)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surface,
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(16), // Spacious
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: border),
@@ -139,68 +147,17 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: accent, width: 1.5),
+          borderSide: const BorderSide(color: primary, width: 1.5), // Focus = Dark Zinc
         ),
-        labelStyle: const TextStyle(color: secondary, fontSize: 13),
         hintStyle: const TextStyle(color: tertiary, fontSize: 13),
-        floatingLabelStyle: const TextStyle(color: accent, fontWeight: FontWeight.w500),
+        labelStyle: const TextStyle(color: secondary, fontSize: 13, fontWeight: FontWeight.w500),
       ),
-
-      // Tooltip: Dark, high contrast, refined
-      tooltipTheme: TooltipThemeData(
-        decoration: BoxDecoration(
-          color: primary,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        textStyle: const TextStyle(color: Colors.white, fontSize: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-
-      // Dividers
+      
       dividerTheme: const DividerThemeData(
-        color: border,
+        color: divider,
         thickness: 1,
         space: 1,
       ),
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // 3. Typography Styles (Helpers for consistent usage)
-  // ---------------------------------------------------------------------------
-  
-  static const TextStyle headingLarge = TextStyle(
-    fontFamily: 'Inter',
-    fontSize: 24,
-    fontWeight: FontWeight.w700,
-    color: primary,
-    letterSpacing: -0.8,
-    height: 1.2,
-  );
-
-  static const TextStyle headingMedium = TextStyle(
-    fontFamily: 'Inter',
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    color: primary,
-    letterSpacing: -0.5,
-    height: 1.3,
-  );
-
-  static const TextStyle labelSmall = TextStyle(
-    fontFamily: 'Inter',
-    fontSize: 11,
-    fontWeight: FontWeight.w600,
-    color: secondary,
-    letterSpacing: 0.5, // Wide spacing for uppercase labels
-    height: 1.4,
-  );
-
-  static const TextStyle valueLarge = TextStyle(
-    fontFamily: 'Inter', // Or a monospaced variant if available like 'JetBrains Mono'
-    fontSize: 32,
-    fontWeight: FontWeight.w400, // Light weight for elegance
-    color: primary,
-    letterSpacing: -1.0,
-  );
 }

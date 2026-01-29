@@ -5,7 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'ui/screens/dashboard_screen.dart'; 
 import 'ui/widgets/dialogs/database_config_dialog.dart';
 import 'ui/theme.dart';
+
 import 'services.dart';
+
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

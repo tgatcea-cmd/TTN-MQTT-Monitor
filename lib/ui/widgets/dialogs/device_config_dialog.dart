@@ -146,7 +146,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                         // Device Type Dropdown
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: _deviceType,
+                            initialValue: _deviceType,
                             decoration: const InputDecoration(labelText: 'Type'),
                             items: const [
                               DropdownMenuItem(value: 'TTN', child: Text('Standard')),
@@ -161,7 +161,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                     
                     // RESTORED: Battery Mode Dropdown
                     DropdownButtonFormField<String>(
-                      value: _batteryMode,
+                      initialValue: _batteryMode,
                       decoration: const InputDecoration(
                         labelText: 'Battery Reporting',
                         helperText: "Select the format sent by your device",

@@ -1,7 +1,7 @@
 // ui/widgets/dialogs/database_config_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../services.dart';
+import '../../../boot_service.dart';
 import '../../theme.dart';
 
 class DatabaseConfigDialog extends StatefulWidget {
@@ -16,7 +16,7 @@ class DatabaseConfigDialog extends StatefulWidget {
 class _DatabaseConfigDialogState extends State<DatabaseConfigDialog> {
   final _urlController = TextEditingController();
   final _keyController = TextEditingController();
-  final _storage = StorageService();
+  final _storage = BootDatabaseStorageService();
   bool _isLoading = false;
 
   @override

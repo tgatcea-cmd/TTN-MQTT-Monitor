@@ -6,14 +6,14 @@ import 'ui/screens/dashboard_screen.dart';
 import 'ui/widgets/dialogs/database_config_dialog.dart';
 import 'ui/theme.dart';
 
-import 'services.dart';
+import 'boot_service.dart';
 
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final storage = StorageService();
+  final storage = BootDatabaseStorageService();
   final dbConfig = await storage.getDatabaseConfig();
 
   bool isConfigured = false;

@@ -1,63 +1,78 @@
 # Safe-Art Monitor – Architecture Report
 
-## 1. Executive Summary
+## Executive Summary
 
 **Safe-Art Monitor** is a Flutter-based IoT application designed to monitor environmental conditions (Temperature, Humidity, CO2) for art preservation. It connects to LoRaWAN devices (via The Things Network) using **MQTT** for real-time data and utilizes **Supabase** for historical persistence and user authentication.
 
 The architecture follows a **Service-Oriented** approach where UI components interact with Singleton services to handle business logic, data persistence, and network communication.
 
----
 
-## 2. High-Level Architecture Diagram
+# High-Level Architecture Diagram
 
--UI (Frontend)
-  |
-  |- theme.dart
-  |- SCREENS
-  |- WIDGETS
-
--DATA (Backend)
-  |
-  |- models.dart
-  |- sensor_repository.dart
-  |- SERVICES
-
--main.dart
--services.dart
-
----
-
-## 3. Tech Stack & Dependencies
+```
+lib/
+├── main.dart                  # Entry Point & App Lifecycle
+├── boot_service.dart          # App Initialization & Credential Check
+├── data/                      # Backend: Logic, Services, & Models
+│   ├── models.dart            # Data Definitions (Immutable)
+│   └── services/              # The "Engine Room" (MQTT, DB, Crypto)
+└── ui/                        # Frontend: Visuals & User Interaction
+    ├── screens/               # Full-page views
+    ├── widgets/               # Reusable components
+    └── theme.dart             # Design System (Colors, Typography)
+```
 
 
----
+## 1. The Entry Point & Bootstrapping
 
-## 4. Core Modules & Services
+Before the app can show any data, it must establish secure connections. We handle this via a dedicated "Bootstrap" layer.
 
-The logic is encapsulated in the `lib/data/services` directory.
+### lib/main.dart
 
----
+It does not handle business logic; its only job is to decide which app to launch based on the configuration state.
 
-## 5. Data Models (`lib/data/models.dart`)
+* **Role**: Initializes Flutter bindings and calls the `BootDatabaseStorageService`.
 
-The application uses two primary data models which handle the normalization of incoming data.
+* **Logic**:
+  - If Supabase credentials exist → Launch `DashboardScreen` (The Main App).
+  - If credentials are missing → Launch `SetupScreen` (The Config Wizard).
 
-### 5.1. Device
+* **Key Concept**: This prevents the main app from ever loading in an invalid state.
 
-### 5.2. SensorData
+### lib/boot_service.dart
 
----
+This is a specialized service that sits outside the main data layer because it is needed before the dependency injection container (`AppController`) is built.
 
-## 6. User Interface (UI) Structure
+* **Role**: Securely reads the *Supabase URL* and *Anon Key* from the device's encrypted storage (`FlutterSecureStorage`).
 
----
+* **Key Concept**: It decouples "App Configuration" from "App Runtime Features."
 
-## 7. Data Flow & Lifecycle
 
----
 
-## 8. Security Considerations
+## 2. The Data Layer (lib/data/)
 
-1. **Key Storage:** API Keys (TTN) and Database Anon Keys are never stored in plain text. The app uses `FlutterSecureStorage` which utilizes Keystore (Android) and Keychain (iOS).
-2. **Supabase Auth:** The app uses Anonymous Sign-In (`signInAnonymously`) to interact with Supabase RLS (Row Level Security) policies.
-3. **TLS:** MQTT connections to The Things Network are secured via TLS on port 8883.
+This folder contains all the logic that makes the application work. It is built to be completely UI-agnostic.
+
+### lib/data/models.dart
+Contains the Device and SensorData classes. These are immutable data structures that define the shape of our information.
+
+### lib/data/services/
+Contains the heavy machinery:
+
+* `AppController`: The central state manager (Facade Pattern). It connects the UI to the underlying services.
+
+* `MonitoringService`: Manages MQTT connections and raw byte decoding.
+
+* `DatabaseService`: Handles Cloud synchronization (Supabase).
+
+* `SecureStorageService`: Handles AES-GCM encryption for importing/exporting device configs.
+
+## 3. The UI Layer (lib/ui/)
+
+This layer is purely reactive. It listens to data changes and paints pixels.
+
+* `screens/`: High-level pages (e.g., `DashboardScreen`). These are the "Containers" that instantiate the `AppController`.
+
+* `widgets/`: Reusable "Atoms" and "Molecules" (e.g., SensorChart, MetricsDashboard). These are dumb components; they take data in and emit events out.
+
+* `theme.dart`: The Design System. It enforces the "Swiss Spa" aesthetic (Zinc colors, Inter font, 4pt spacing grid) across the entire app.

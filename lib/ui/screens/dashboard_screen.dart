@@ -1,6 +1,7 @@
 // ui/screens/dashboard_screen.dart
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -11,12 +12,13 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/models.dart';
 import '../../data/services/app_controller.dart';
 import '../../data/services/database_service.dart';
+
 import '../theme.dart';
-import '../widgets/common/device_sidebar.dart';
-import '../widgets/common/metrics_dashboard.dart';
 import '../widgets/device_camera_roll.dart';
 import '../widgets/history_view.dart';
 import '../widgets/charts/sensor_chart.dart';
+import '../widgets/common/device_sidebar.dart';
+import '../widgets/common/metrics_dashboard.dart';
 import '../widgets/dialogs/device_config_dialog.dart';
 import '../widgets/dialogs/export_device_dialog.dart';
 import '../widgets/dialogs/import_device_dialog.dart';

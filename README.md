@@ -16,28 +16,10 @@ lib/
 │   ├── models.dart            # Data Definitions (Immutable)
 │   └── services/              # The "Engine Room" (MQTT, DB, Crypto)
 └── ui/                        # Frontend: Visuals & User Interaction
+    ├── theme.dart             # Design System (Colors, Typography)
     ├── screens/               # Full-page views
-    ├── widgets/               # Reusable components
-    └── theme.dart             # Design System (Colors, Typography)
+    └── widgets/               # Reusable components
 
-lib/
-└── ui
-    ├── screens
-    │   └── dashboard_screen.dart
-    ├── theme.dart
-    └── widgets
-        ├── charts
-        │   └── sensor_chart.dart
-        ├── common
-        │   ├── device_sidebar.dart
-        │   └── metrics_dashboard.dart
-        ├── device_camera_roll.dart
-        ├── dialogs
-        │   ├── database_config_dialog.dart
-        │   ├── device_config_dialog.dart
-        │   ├── export_device_dialog.dart
-        │   └── import_device_dialog.dart
-        └── history_view.dart    
 ```
 <br />
 
@@ -192,7 +174,6 @@ This folder contains the specialized "worker" classes. Each service has a single
   * Non-sensitive data (Names, EUIs) → SharedPreferences.
   * Sensitive data (API Keys) → FlutterSecureStorage (Encrypted Keystore/Keychain).
 
-
 <br >
 
 ## D - Adapters & Drivers `./services/`
@@ -238,3 +219,113 @@ The Production Implementation. This is the concrete class that ties the "Live" a
   * For Live Data, it delegates to MonitoringService (MQTT).
   * For History, it delegates to DatabaseService (Supabase).
 * **Why?**: The `AppController` doesn't want to know about MQTT or SQL. It just asks RealSensorService for data, and this class figures out where to get it.
+
+Here is the final section of your Architecture Report, covering the **UI Layer**.
+
+I have structured it to match the style of your previous sections: distinguishing between the **Layout/Container** logic, the **Component** library, and the **Design System**.
+
+<br />
+<br />
+<br />
+
+# 3. The UI Layer `lib/ui/` [Frontend]
+
+The Frontend is designed to be **purely reactive**. It does not store business state; instead, it listens to the `AppController` and repaints automatically when data changes. The architecture prioritizes responsiveness, adapting seamlessly between Desktop (Sidebar layout) and Mobile (Drawer/AppBar layout).
+
+```text     
+lib/
+└── ui
+    ├── theme.dart                            # The Central Design System
+    ├── screens                               # High-Level Layout Containers
+    │   └── dashboard_screen.dart
+    └── widgets                               # Reusable UI Components
+        ├── device_camera_roll.dart           # Swipeable Device View
+        ├── history_view.dart    
+        ├── charts                            # Data Visualization
+        │   └── sensor_chart.dart
+        ├── common                            # Shared Layout Elements (Sidebar, Dashboard Grid)
+        │   ├── device_sidebar.dart
+        │   └── metrics_dashboard.dart
+        └── dialogs                           # Modal Interactions (Forms, Configs)
+            ├── database_config_dialog.dart
+            ├── device_config_dialog.dart
+            ├── export_device_dialog.dart
+            └── import_device_dialog.dart
+```
+
+<br />
+
+## A - High-Level Layout `./screens/`
+
+### `./dashboard_screen.dart`
+
+The main orchestrator of the visual experience. It acts as the "Binder" between the `AppController` and the widget tree.
+
+* **Responsive Logic**: It uses a `LayoutBuilder` to switch strategies based on screen width:
+* **Desktop (>896)**: Displays a persistent **Row** layout with `DeviceSidebar` on the left and `MainContent` on the right.
+* **Mobile**: Switches to a standard **Scaffold** with an `AppBar` and a hidden `Drawer` for navigation.
+
+
+* **State Management**: It holds transient UI state (like `_showHistory` toggle or `_selectedDevice`) but delegates all data fetching to the Controller.
+
+<br />
+
+## B - Core Components `./widgets/`
+
+We follow an "Atomic Design" philosophy where widgets are specialized and composable.
+
+### `./device_camera_roll.dart`
+
+* **Role**: Provides a swipeable, paginated view of active devices.
+* **UX**: Uses a `PageView` with custom physics (`BouncingScrollPhysics`) and smooth animations (`Curves.easeOutQuart`) to create a premium "Camera Roll" feel when switching between sensors.
+
+### `./common/metrics_dashboard.dart`
+
+* **Role**: The primary data display. It renders the "Live" view of a sensor.
+* **Adaptive Grid**: Automatically switches between **2 columns** (Mobile) and **4 columns** (Desktop) to display metrics like Temperature, Humidity, and CO2.
+* **Visual Feedback**:
+  * *Alert Banners*: Dynamically inserts "Signal Lost" or "Anomaly" warnings based on the `alarmStatus` map.
+  * *Oscillation Index (MHO)*: A dedicated wide-card for displaying the daily thermal stress calculation.
+
+
+
+### `./common/device_sidebar.dart`
+
+* **Role**: The navigation hub. It lists all available devices and allows CRUD operations.
+* **Status Indicators**: Uses color-coded dots (Emerald for Online, Amber for Alarm, Grey for Offline) to give an at-a-glance system health report.
+
+### `./charts/sensor_chart.dart`
+
+* **Role**: Visualizes historical trends using `fl_chart`.
+* **Aesthetics**: Implements a "Floating" look by removing outer borders and using dashed grid lines. It features a gradient fill under the curve to emphasize data volume.
+
+<br />
+
+## C - Interaction Design `./widgets/dialogs/`
+
+Complex user flows are encapsulated in modal dialogs to keep the main screen clean.
+
+* `device_config_dialog.dart`: Handles the creation/editing of devices. It includes logic for toggling "Remote Control" capabilities and selecting Battery Modes (Voltage vs Percentage).
+* `import_device_dialog.dart` & `export_device_dialog.dart`: These are the frontend interfaces for the cryptographic services, handling password inputs and file picking/saving.
+
+<br />
+
+## D - The Design System `./theme.dart`
+
+The application enforces a strict "Swiss Spa" aesthetic, defined in `AppTheme`.
+
+* **Color Palette (Zinc)**:
+  * The app avoids pure black (`#000000`).
+  * **Primary**: Zinc 950 (`#18181B`) for high-contrast text.
+  * **Surface**: Zinc 50 (`#FAFAFA`) for backgrounds and White (`#FFFFFF`) for cards.
+  * **Accents**: Desaturated, professional tones—Teal 600 (Action), Rose 700 (Error), Amber 700 (Warning).
+
+
+* **Typography**:
+  * Font Family: **Inter** (for high legibility on screens).
+  * Hierarchy: Uses a scaling system from `DisplayLarge` (32px) down to `LabelSmall` (11px).
+
+
+* **Shape & Spacing**:
+  * **Borders**: Thin, subtle borders (Zinc 200) replace heavy drop shadows.
+  * **Grid**: A consistent **4pt spacing grid** (padding/margins are multiples of 4: 8, 12, 16, 24, 32).

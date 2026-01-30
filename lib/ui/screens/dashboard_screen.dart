@@ -80,7 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool isDesktop = constraints.maxWidth >= 1024;
+        final bool isDesktop = constraints.maxWidth >= 896;
 
         return Scaffold(
           key: _scaffoldKey,

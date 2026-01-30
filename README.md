@@ -19,7 +19,6 @@ lib/
     ├── theme.dart             # Design System (Colors, Typography)
     ├── screens/               # Full-page views
     └── widgets/               # Reusable components
-
 ```
 <br />
 

@@ -4,6 +4,63 @@
 
 The architecture follows a **Service-Oriented** approach where UI components interact with Singleton services to handle business logic, data persistence, and network communication.
 
+## Table of Contents
+
+* **[1. High-Level Architecture Design](#1-high-level-architecture-design)**
+  * **[A — Entry Point & Bootstrapping](#a---the-entry-point--bootstrapping)**
+    * [main.dart (App Lifecycle)](#libmaindart)
+    * [boot_service.dart (Credential Check)](#libboot_servicedart)
+
+
+  * **[B — The Data Layer Overview](#b---the-data-layer-libdata)**
+  * **[C — The UI Layer Overview](#c---the-ui-layer-libui)**
+
+
+* **[2. The Data Layer [Backend]](#2-the-data-layer-libdata-backend)**
+  * **[A — Data Design](#a---data-design-modelsdart)**
+    * [The Device Model](#the-device-model)
+    * [The SensorData Model](#the-sensordata-model)
+
+
+  * **[B — Architecture Patterns](#b---architecture-patterns)**
+    * [The Facade Pattern (AppController)](#the-facade-pattern-servicesapp_controllerdart)
+    * [The Repository Pattern (SensorRepository)](#the-repository-pattern-sensor_repositorydart)
+
+
+  * **[C — Service Breakdown](#c---service-breakdown-services)**
+    * [Monitoring Service (MQTT)](#monitoringservicedart)
+    * [Database Service (Supabase)](#databaseservicedart)
+    * [Secure Storage Service (AES-GCM)](#secure_storage_servicedart)
+    * [Device Service (CRUD)](#deviceservicedart)
+
+
+  * **[D — Adapters & Drivers](#d---adapters--drivers-services)**
+    * [Device Mapper (JSON Schema)](#device_mapperdart)
+    * [MQTT Wrapper (TTN Driver)](#mqtt_wrapperdart)
+    * [Mock Data Service (Simulation)](#mock_data_servicedart)
+    * [Real Sensor Service (Aggregator)](#real_sensor_servicedart)
+
+
+
+
+* **[3. The UI Layer [Frontend]](#3-the-ui-layer-libui-frontend)**
+  * **[A — High-Level Layout](#a---high-level-layout-screens)**
+    * [Dashboard Screen (Responsive)](#dashboard_screendart)
+
+
+  * **[B — Core Components](#b---core-components-widgets)**
+    * [Device Camera Roll](#device_camera_rolldart)
+    * [History View (Real-time Sync)](#history_viewdart)
+    * [Metrics Dashboard (Adaptive Grid)](#commonmetrics_dashboarddart)
+
+
+  * **[C — Interaction Design](#c---interaction-design-widgetsdialogs)**
+
+  * **[D — The Design System](#d---the-design-system-themedart)**
+---
+
+<br />
+<br />
 <br />
 
 # 1. High-Level Architecture Design

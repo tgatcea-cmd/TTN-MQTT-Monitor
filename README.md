@@ -236,20 +236,20 @@ lib/
 └── ui
     ├── theme.dart                            # The Central Design System
     ├── screens                               # High-Level Layout Containers
-    │   └── dashboard_screen.dart
+    │   └── dashboard_screen.dart             # Binder between the backend and the widget tree
     └── widgets                               # Reusable UI Components
         ├── device_camera_roll.dart           # Swipeable Device View
-        ├── history_view.dart    
+        ├── history_view.dart                 # Chronological log of received transmissions
         ├── charts                            # Data Visualization
-        │   └── sensor_chart.dart
+        │   └── sensor_chart.dart             # Visualizes historical trends
         ├── common                            # Shared Layout Elements (Sidebar, Dashboard Grid)
-        │   ├── device_sidebar.dart
-        │   └── metrics_dashboard.dart
+        │   ├── device_sidebar.dart           # The navigation hub
+        │   └── metrics_dashboard.dart        # Live view sensors renderer
         └── dialogs                           # Modal Interactions (Forms, Configs)
-            ├── database_config_dialog.dart
-            ├── device_config_dialog.dart
-            ├── export_device_dialog.dart
-            └── import_device_dialog.dart
+            ├── database_config_dialog.dart   # Enabler of the project's Cloud ecosystem
+            ├── device_config_dialog.dart     # Handles the creation/editing of devices
+            ├── export_device_dialog.dart     # UI for the export cryptographic service
+            └── import_device_dialog.dart     # UI for the import cryptographic service
 ```
 
 <br />
@@ -278,6 +278,15 @@ We follow an "Atomic Design" philosophy where widgets are specialized and compos
 * **Role**: Provides a swipeable, paginated view of active devices.
 * **UX**: Uses a `PageView` with custom physics (`BouncingScrollPhysics`) and smooth animations (`Curves.easeOutQuart`) to create a premium "Camera Roll" feel when switching between sensors.
 
+### `./history_view.dart` 
+
+* **Role**: Provides a detailed, real-time chronological log of received transmissions. It is the primary component of the "Historical Analysis" tab.
+* **Real-time Sync Logic**:
+  * Unlike a static view, this widget implements a StreamSubscription directly connected to the DatabaseService.
+  * *Duplicate Detection*: When receiving new packets via the stream, it uses a Set of IDs to compare incoming readings with those in memory, ensuring the list is accurate and has no visual jumps.
+  * *Memory Management*: To maintain optimal performance on mobile devices, the widget implements a "Rolling Buffer" that limits the view to the last 150 readings, automatically removing older ones.
+* **Key Concept**: Acts as a hybrid bridge; it loads initial history from Supabase and then stays "alive" by listening for direct insertions, eliminating the need for the user to manually refresh the screen.
+
 ### `./common/metrics_dashboard.dart`
 
 * **Role**: The primary data display. It renders the "Live" view of a sensor.
@@ -285,8 +294,6 @@ We follow an "Atomic Design" philosophy where widgets are specialized and compos
 * **Visual Feedback**:
   * *Alert Banners*: Dynamically inserts "Signal Lost" or "Anomaly" warnings based on the `alarmStatus` map.
   * *Oscillation Index (MHO)*: A dedicated wide-card for displaying the daily thermal stress calculation.
-
-
 
 ### `./common/device_sidebar.dart`
 
@@ -304,6 +311,7 @@ We follow an "Atomic Design" philosophy where widgets are specialized and compos
 
 Complex user flows are encapsulated in modal dialogs to keep the main screen clean.
 
+* `database_config_dialog.dart`: It is the "Enabler" of the project's Cloud ecosystem. Without a successful configuration, the app remains in SetupScreen mode, blocking access to the dashboard to prevent null pointer errors or authentication failures in data services. The URL and Anon Key data is persisted in the device's encrypted storage, allowing the main() function to initialize the Supabase client during the next startup before building the widget tree.
 * `device_config_dialog.dart`: Handles the creation/editing of devices. It includes logic for toggling "Remote Control" capabilities and selecting Battery Modes (Voltage vs Percentage).
 * `import_device_dialog.dart` & `export_device_dialog.dart`: These are the frontend interfaces for the cryptographic services, handling password inputs and file picking/saving.
 
